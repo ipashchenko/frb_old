@@ -213,9 +213,9 @@ if __name__ == '__main__':
         max_snrs.append(max_snr)
         dm_used.append(dm)
 
-    dm_result = np.array(dm_used)[np.where(np.array(max_snrs) ==
-                                           max(max_snrs))[0]]
-    print "DM = ", max(dm_result)
+    dm_result = np.mean(np.array(dm_used)[np.where(np.array(max_snrs) ==
+                                                   max(max_snrs))])
+    print "DM = ",  dm_result
 
     # Plot and print results
     plt.close()
@@ -224,7 +224,7 @@ if __name__ == '__main__':
     plt.plot(dm_used, max_snrs, '.k')
     plt.xlabel("DM-correction")
     plt.ylabel("max SNR")
-    plt.axvline(dm_result, color='r', lw=3, label=str(round(dm_result[0], 1)) +
+    plt.axvline(dm_result, color='r', lw=3, label=str(round(dm_result, 1)) +
                 " cm^3 / pc")
     plt.legend(loc='best')
     plt.subplot(212)
