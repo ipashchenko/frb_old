@@ -91,8 +91,9 @@ class Frame(object):
                 raise NotImplementedError("Ticks haven't implemented yet")
                 # plt.xticks(np.linspace(0, 999, 10, dtype=int),
                 # frame.t[np.linspace(0, 999, 10, dtype=int)])
-            plt.xlabel("time")
+            plt.xlabel("time steps")
             plt.ylabel("frequency ch. #")
+            plt.show()
 
 
 class DataFrame(Frame):
