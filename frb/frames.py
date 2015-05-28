@@ -196,8 +196,8 @@ if __name__ == '__main__':
     frame.plot()
     dm_min = 0.
     dm_max = 1000.
-    dm_delta = 3. *delta_dm_max(frame.nu_0, frame.nu_0 - frame.n_nu * frame.dnu,
-                                frame.dt)
+    dm_delta = delta_dm_max(frame.nu_0, frame.nu_0 - frame.n_nu * frame.dnu,
+                            frame.dt)
 
     n_dm = (dm_max - dm_min) / dm_delta
     n_dm = int(math.ceil(n_dm))
