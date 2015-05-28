@@ -12,6 +12,7 @@ except ImportError:
 vround = np.vectorize(round)
 vint = np.vectorize(int)
 
+
 class Frame(object):
     """
     Basic class that represents a set of regulary spaced frequency channels with
@@ -135,7 +136,9 @@ class SimFrame(Frame):
             Mean of GP kernel. (default: ``0.0``)
 
         """
-        noise = np.random.normal(amp, std, size=(self.n_t * self.n_nu)).reshape(np.shape(self.values))
+        noise = np.random.normal(amp, std,
+                                 size=(self.n_t *
+                                       self.n_nu)).reshape(np.shape(self.values))
         gp = george.GP(kamp * kernels.ExpSquaredKernel(kscale))
 
     def add_pulse(self, t_0, amp, width, dm=0.):
