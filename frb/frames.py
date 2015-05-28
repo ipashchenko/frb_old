@@ -54,11 +54,31 @@ class Frame(object):
         for i in range(self.n_nu):
             self.values[i] = np.roll(self.values[i], -nt_all[i])
 
-    def average_in_time(self, times=None):
-        raise NotImplementedError
+    def average_in_time(self, plot=False):
+        """
+        Average frame in time.
 
-    def average_in_freq(self, freqs=None):
-        raise NotImplementedError
+        :return:
+            Numpy array with length equals number of frequency channels.
+        """
+        result = np.mean(self.values, axis=1)
+        if plt is not None and plot:
+            plt.plot(np.arange(self.n_nu), result, '.k')
+            plt.xlabel("frequency channel #")
+        return result
+
+    def average_in_freq(self, plot=False):
+        """
+        Average frame in frequency.
+
+        :return:
+            Numpy array with length equals number of time steps.
+        """
+        result = np.mean(self.values, axis=0)
+        if plt is not None and plot:
+            plt.plot(np.arange(self.n_t), result, '.k')
+            plt.xlabel("time steps")
+        return result
 
     # TODO: if one choose what channels to plot - use ``extent`` kwarg.
     def plot(self, freqs=None, times=None, plot_indexes=True):
