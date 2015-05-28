@@ -83,7 +83,8 @@ class Frame(object):
     # TODO: if one choose what channels to plot - use ``extent`` kwarg.
     def plot(self, freqs=None, times=None, plot_indexes=True):
         if plt is not None:
-            plt.imshow(self.values, interpolation='none', cmap=plt.cm.Reds)
+            plt.imshow(self.values, interpolation='none', aspect='auto',
+                       cmap=plt.cm.Reds)
             plt.colorbar()
             if not plot_indexes:
                 raise NotImplementedError("Ticks haven't implemented yet")
