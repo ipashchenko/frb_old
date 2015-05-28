@@ -1,4 +1,6 @@
+import math
 import numpy as np
+from utils import delta_dm_max
 try:
     import george
     from george import kernels
@@ -29,6 +31,7 @@ class Frame(object):
         self.nu = (nu_0 - nu * dnu)[::-1]
         self.t = t_0 + t * dt
         self.dt = dt
+        self.dnu = dnu
 
     def slice(self, channels, times):
         """
@@ -36,7 +39,7 @@ class Frame(object):
         """
         raise NotImplementedError
 
-    def de_disperse(self, dm):
+    def de_disperse(self, dm, in_place=True):
         """
         De-disperse frame using specified value of DM.
 
@@ -52,30 +55,40 @@ class Frame(object):
         # Find what number of time bins corresponds to this shifts
         nt_all = vint(vround(dt_all / self.dt))
         # Roll each axis (freq. channel) to each own number of time steps.
+        # TODO: vectorize - check ``np.roll`` docs
+        values = list()
         for i in range(self.n_nu):
-            self.values[i] = np.roll(self.values[i], -nt_all[i])
+            values.append(np.roll(self.values[i], -nt_all[i]))
+        values = np.vstack(values)
+        if in_place:
+            self.values = values[:,:]
+        return values
 
-    def average_in_time(self, plot=False):
+    def average_in_time(self, values=None, plot=False):
         """
         Average frame in time.
 
         :return:
             Numpy array with length equals number of frequency channels.
         """
-        result = np.mean(self.values, axis=1)
+        if values is None:
+            values = self.values
+        result = np.mean(values, axis=1)
         if plt is not None and plot:
             plt.plot(np.arange(self.n_nu), result, '.k')
             plt.xlabel("frequency channel #")
         return result
 
-    def average_in_freq(self, plot=False):
+    def average_in_freq(self, values=None, plot=False):
         """
         Average frame in frequency.
 
         :return:
             Numpy array with length equals number of time steps.
         """
-        result = np.mean(self.values, axis=0)
+        if values is None:
+            values = self.values
+        result = np.mean(values, axis=0)
         if plt is not None and plot:
             plt.plot(np.arange(self.n_t), result, '.k')
             plt.xlabel("time steps")
