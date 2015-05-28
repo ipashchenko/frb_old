@@ -9,6 +9,8 @@ try:
 except ImportError:
     plt = None
 
+vround = np.vectorize(round)
+vint = np.vectorize(int)
 
 class Frame(object):
     """
@@ -25,6 +27,7 @@ class Frame(object):
         t = np.arange(n_t)
         self.nu = (nu_0 - nu * dnu)[::-1]
         self.t = t_0 + t * dt
+        self.dt = dt
 
     def slice(self, channels, times):
         """
@@ -33,7 +36,23 @@ class Frame(object):
         raise NotImplementedError
 
     def de_disperse(self, dm):
-        raise NotImplementedError
+        """
+        De-disperse frame using specified value of DM.
+
+        :param dm:
+            Dispersion measure to use in de-dispersion [cm^3 / pc].
+
+        """
+        # MHz ** 2 * cm ** 3 * s / pc
+        k = 1. / (2.410331 * 10 ** (-4))
+
+        # Calculate shift of time caused by de-dispersion for all channels
+        dt_all = k * dm * (1. / self.nu ** 2. - 1. / self.nu_0 ** 2.)
+        # Find what number of time bins corresponds to this shifts
+        nt_all = vint(vround(dt_all / self.dt))
+        # Roll each axis (freq. channel) to each own number of time steps.
+        for i in range(self.n_nu):
+            self.values[i] = np.roll(self.values[i], -nt_all[i])
 
     def average_in_time(self, times=None):
         raise NotImplementedError
@@ -132,3 +151,5 @@ if __name__ == '__main__':
     frame.plot()
     plt.plot(frame.t, frame.values[10])
     plt.plot(frame.t, frame.values[30])
+    frame.de_disperse(dm=1000.)
+    frame.plot()
