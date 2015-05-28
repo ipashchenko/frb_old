@@ -58,3 +58,9 @@ target/
 
 # PyCharm
 .idea/
+
+# txt-files
+*.txt
+
+# vim pymode stuff
+.ropeproject/
