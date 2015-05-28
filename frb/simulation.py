@@ -1,12 +1,18 @@
-import george
 import numpy as np
-import matplotlib.pyplot as plt
-from george import kernels
+try:
+    import george
+    from george import kernels
+except ImportError:
+    george = None
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
 
 
 class Frame(object):
     """
-    Class that represents a set of regulary spaced frequency channels with
+    Basic class that represents a set of regulary spaced frequency channels with
     regulary measured values.
     """
     def __init__(self, n_nu, n_t, nu_0, t_0, dnu, dt):
@@ -17,69 +23,112 @@ class Frame(object):
         self.values = np.zeros(n_nu * n_t, dtype=float).reshape((n_nu, n_t,))
         nu = np.arange(n_nu)
         t = np.arange(n_t)
-        self.nu = nu_0 - nu * dnu
+        self.nu = (nu_0 - nu * dnu)[::-1]
         self.t = t_0 + t * dt
 
     def slice(self, channels, times):
         """
         Slice frame using specified channels and/or times.
         """
-        pass
+        raise NotImplementedError
 
-    def add_pulse(self, t_0, amp, width, dm=0.):
-        """
-        Add pulse to data.
+    def de_disperse(self, dm):
+        raise NotImplementedError
 
-        :param t_0:
-            Arrival time of pulse at highest frequency channel.
-        :param amp:
-            Amplitude of pulse.
-        :param width:
-            Width of pulse (in time domain).
-        :param dm: (optional)
-            Dispersion measure of pulse. (Default: ``0.``)
+    def average_in_time(self, times=None):
+        raise NotImplementedError
 
-        """
-        # Calculate arrival times for all channels
-        t0_all = (t_0 * np.ones(self.n_nu)[:, np.newaxis] +
-                  dm * (1. / self.nu ** 2. -
-                        1. / self.nu_0 ** 2.))[0]
-        pulse = amp * np.exp(-0.5 * (self.t -
-                                     t0_all[:, np.newaxis]) ** 2 / width)
-        self.values += pulse
+    def average_in_freq(self, freqs=None):
+        raise NotImplementedError
 
-    def add_noise(self, std, mean=0., scale=None, amp=None):
+    # TODO: if one choose what channels to plot - use ``extent`` kwarg.
+    def plot(self, freqs=None, times=None, plot_indexes=True):
+        if plt is not None:
+            plt.imshow(self.values, interpolation='none', cmap=plt.cm.Reds)
+            plt.colorbar()
+            if not plot_indexes:
+                raise NotImplementedError("Ticks haven't implemented yet")
+                # plt.xticks(np.linspace(0, 999, 10, dtype=int),
+                # frame.t[np.linspace(0, 999, 10, dtype=int)])
+            plt.xlabel("time")
+            plt.ylabel("frequency ch. #")
+
+
+class DataFrame(Frame):
+    """
+    Class that represents the frame of real data.
+
+    :param fname:
+        Name of txt-file with rows representing frequency channels and columns -
+        1d-time series of data for each frequency channel.
+
+    """
+    def __init__(self, fname, nu_0, t_0, dnu, dt):
+        values = np.loadtxt(fname, unpack=True)
+        n_nu, n_t = np.shape(values)
+        super(DataFrame, self).__init__(n_nu, n_t, nu_0, t_0, dnu, dt)
+        self.values += values
+
+
+class SimFrame(Frame):
+    """
+    Class that represents the simulation of data.
+
+    """
+    def add_noise(self, amp, std, mean=0., kamp=None, kscale=None, kmean=None):
         """
         Add noise to frame using specified gaussian process or simple gaussian
         noise.
-        :param std:
-        :param scale:
+
         :param amp:
-        :return:
+            Amplitude of gaussian uncorrelated noise.
+        :param std:
+            Std of gaussian uncorrelated noise.
+        :param mean: (optional)
+            Mean of gaussian uncorrelated noise. (default: ``0.``)
+        :param kamp: (optional)
+            Amplitude of GP kernel. (default: ``1.0``)
+        :param kscale:
+            Scale of GP kernel. If ``None`` then don't add correlated noise.
+            (default: ``None``)
+        :param kmean: (optional)
+            Mean of GP kernel. (default: ``0.0``)
+
         """
-        pass
+        noise = np.random.normal(amp, std, size=(self.n_t * self.n_nu)).reshape(np.shape(self.values))
+        gp = george.GP(kamp * kernels.ExpSquaredKernel(kscale))
 
-    def de_disperse(self, dm):
-        pass
+    def add_pulse(self, t_0, amp, width, dm=0.):
+        """
+        Add pulse to frame.
 
-    def average_in_time(self, times=None):
-        pass
+        :param t_0:
+            Arrival time of pulse at highest frequency channel [s].
+        :param amp:
+            Amplitude of pulse.
+        :param width:
+            Width of gaussian pulse [s] (in time domain).
+        :param dm: (optional)
+            Dispersion measure of pulse [cm^3 / pc]. (Default: ``0.``)
 
-    def average_in_freq(self, freqs=None):
-        pass
+        """
+        # MHz ** 2 * cm ** 3 * s / pc
+        k = 1. / (2.410331 * 10 ** (-4))
 
-    def plot(self, freqs=None, times=None):
-        pass
+        # Calculate arrival times for all channels
+        t0_all = (t_0 * np.ones(self.n_nu)[:, np.newaxis] +
+                  k * dm * (1. / self.nu ** 2. -
+                            1. / self.nu_0 ** 2.))[0]
+        pulse = amp * np.exp(-0.5 * (self.t -
+                                     t0_all[:, np.newaxis]) ** 2 / width ** 2.)
+        self.values += pulse
 
-if __name__== '__main__':
 
-    frame = Frame(512, 300, 1.6 * 10 ** 3, 0., 15625.0 * 10 ** (-6), 0.01)
+if __name__ == '__main__':
+
+    frame = SimFrame(128, 1000, 1600., 0., 16. / 128., 0.001)
     # Plot first (highest frequency) channel
-    plt.plot(frame.t, frame.values[0])
-    frame.add_pulse(1.0, 3., 0.1)
-    plt.plot(frame.t, frame.values[100])
-    plt.plot(frame.t, frame.values[300])
-
-
-
-
+    frame.add_pulse(0.5, 3., 0.003, dm=1000.)
+    frame.plot()
+    plt.plot(frame.t, frame.values[10])
+    plt.plot(frame.t, frame.values[30])
