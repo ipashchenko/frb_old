@@ -53,8 +53,8 @@ if __name__ == '__main__':
     for i in xrange(n_dm):
         dm = dm_min + (i + 1) * dm_delta
         print "Searching DM = ", dm, " cm^3 / pc"
-        _frame = frame.de_disperse(dm=dm, in_place=False)
-        _frame_t = frame.average_in_freq(_frame, plot=False)
+        _frame = frame.de_disperse(dm=dm, replace=False)
+        _frame_t = frame.average_in_freq(_frame)
         max_snr = max(abs((_frame_t - np.mean(_frame_t)) / np.std(_frame_t)))
         print "Max SNR = ", max_snr
         max_snrs.append(max_snr)

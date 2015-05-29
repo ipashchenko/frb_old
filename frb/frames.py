@@ -39,12 +39,15 @@ class Frame(object):
         """
         raise NotImplementedError
 
-    def de_disperse(self, dm, in_place=True):
+    def de_disperse(self, dm, replace=True):
         """
         De-disperse frame using specified value of DM.
 
         :param dm:
             Dispersion measure to use in de-dispersion [cm^3 / pc].
+        :param replace: (optional)
+            Replace instance's frame values with de-dispersed ones? (default:
+            ``True``)
 
         """
         # MHz ** 2 * cm ** 3 * s / pc
@@ -60,13 +63,20 @@ class Frame(object):
         for i in range(self.n_nu):
             values.append(np.roll(self.values[i], -nt_all[i]))
         values = np.vstack(values)
-        if in_place:
-            self.values = values[:,:]
+        if replace:
+            self.values = values[:, :]
         return values
 
     def average_in_time(self, values=None, plot=False):
         """
         Average frame in time.
+
+        :param values: ``(n_t, n_nu)`` (optional)
+            Frame values which average. If ``None`` then use current instance's
+            values. (default: ``None``)
+        :param plot: (optional)
+            Plot figure? If ``False`` then only return array. (default:
+            ``False``)
 
         :return:
             Numpy array with length equals number of frequency channels.
@@ -82,6 +92,13 @@ class Frame(object):
     def average_in_freq(self, values=None, plot=False):
         """
         Average frame in frequency.
+
+        :param values: ``(n_t, n_nu)`` (optional)
+            Frame values which average. If ``None`` then use current instance's
+            values. (default: ``None``)
+        :param plot: (optional)
+            Plot figure? If ``False`` then only return array. (default:
+            ``False``)
 
         :return:
             Numpy array with length equals number of time steps.
