@@ -80,6 +80,7 @@ if __name__ == '__main__':
     plt.colorbar()
     plt.xlabel("time steps")
     plt.ylabel("frequency ch. #")
+    plt.show()
     if args.savefig:
         plt.savefig(args.savefig, bbox_inches='tight')
         plt.close()
