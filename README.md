@@ -1,2 +1,0 @@
-# frb
-Searching for FRBs
