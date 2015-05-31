@@ -17,6 +17,20 @@ class Frame(object):
     """
     Basic class that represents a set of regulary spaced frequency channels with
     regulary measured values.
+
+    :param n_nu:
+        Number of spectral channels.
+    :param n_t:
+        Number of time steps.
+    :param nu_0:
+        Frequency of highest frequency channel [MHz].
+    :param t0:
+        Time of first measurement.
+    :param dnu:
+        Width of spectral channel [MHz].
+    :param dt:
+        Time step [s].
+
     """
     def __init__(self, n_nu, n_t, nu_0, t_0, dnu, dt):
         self.n_nu = n_nu
@@ -172,9 +186,11 @@ class SimFrame(Frame):
                                          self.n_nu)).reshape(np.shape(self.values))
         self.values += noise
         if kscale is not None and kamp is not None:
-            gp = george.GP(kamp * kernels.ExpSquaredKernel(kscale))
+            gp1 = george.GP(kamp * kernels.ExpSquaredKernel(kscale))
+            gp2 = george.GP(kamp * kernels.ExpSquaredKernel(kscale))
             for i in xrange(self.nt):
-                gp_samples = gp.sample(self.nu)
+                gp_samples = np.sqrt(gp1.sample(self.nu) ** 2. +
+                                     gp2.sample(self.nu) ** 2.)
                 self.values[:, i] += gp_samples
 
     def add_pulse(self, t_0, amp, width, dm=0.):
