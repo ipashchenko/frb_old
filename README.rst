@@ -1,4 +1,4 @@
-uvmod
+FRB
 =====
 
 **Searching FRB in RA data**
