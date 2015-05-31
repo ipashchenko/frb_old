@@ -1,6 +1,4 @@
-import math
 import numpy as np
-from utils import delta_dm_max
 try:
     import george
     from george import kernels
@@ -147,30 +145,38 @@ class SimFrame(Frame):
     Class that represents the simulation of data.
 
     """
-    def add_noise(self, amp, std, mean=0., kamp=None, kscale=None, kmean=None):
-        """
-        Add noise to frame using specified gaussian process or simple gaussian
-        noise.
+    def save_to_txt(self, fname):
+        np.savetxt(fname, self.values.T)
 
-        :param amp:
-            Amplitude of gaussian uncorrelated noise.
+    # FIXME: Use Rice distribution instead of normal
+    def add_noise(self, std, kamp=None, kscale=None, kmean=0.0):
+        """
+        Add noise to frame using specified gaussian process or simple
+        rayleigh-distributed noise.
+
+        Correlated noise is correlated along the frequency axis.
+
         :param std:
-            Std of gaussian uncorrelated noise.
-        :param mean: (optional)
-            Mean of gaussian uncorrelated noise. (default: ``0.``)
+            Std of rayleigh-distributed uncorrelated noise.
         :param kamp: (optional)
-            Amplitude of GP kernel. (default: ``1.0``)
-        :param kscale:
-            Scale of GP kernel. If ``None`` then don't add correlated noise.
+            Amplitude of GP kernel. If ``None`` then don't add correlated noise.
             (default: ``None``)
+        :param kscale:
+            Scale of GP kernel [MHz]. If ``None`` then don't add correlated
+            noise.  (default: ``None``)
         :param kmean: (optional)
             Mean of GP kernel. (default: ``0.0``)
 
         """
-        noise = np.random.normal(amp, std,
-                                 size=(self.n_t *
-                                       self.n_nu)).reshape(np.shape(self.values))
-        gp = george.GP(kamp * kernels.ExpSquaredKernel(kscale))
+        noise = np.random.rayleigh(std,
+                                   size=(self.n_t *
+                                         self.n_nu)).reshape(np.shape(self.values))
+        self.values += noise
+        if kscale is not None and kamp is not None:
+            gp = george.GP(kamp * kernels.ExpSquaredKernel(kscale))
+            for i in xrange(self.nt):
+                gp_samples = gp.sample(self.nu)
+                self.values[:, i] += gp_samples
 
     def add_pulse(self, t_0, amp, width, dm=0.):
         """
