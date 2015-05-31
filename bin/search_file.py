@@ -2,7 +2,6 @@ import os
 import sys
 import math
 import argparse
-import numpy as np
 path = os.path.normpath(os.path.join(os.path.dirname(sys.argv[0]), '..'))
 sys.path.insert(0, path)
 from frb.frames import DataFrame
