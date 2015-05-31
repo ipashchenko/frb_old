@@ -84,8 +84,8 @@ class Frame(object):
         Average frame in time.
 
         :param values: ``(n_t, n_nu)`` (optional)
-            Frame values which average. If ``None`` then use current instance's
-            values. (default: ``None``)
+            Numpy array of Frame values to average. If ``None`` then use current
+            instance's values. (default: ``None``)
         :param plot: (optional)
             Plot figure? If ``False`` then only return array. (default:
             ``False``)
@@ -106,8 +106,8 @@ class Frame(object):
         Average frame in frequency.
 
         :param values: ``(n_t, n_nu)`` (optional)
-            Frame values which average. If ``None`` then use current instance's
-            values. (default: ``None``)
+            Numpy array of Frame values to average. If ``None`` then use current
+            instance's values. (default: ``None``)
         :param plot: (optional)
             Plot figure? If ``False`` then only return array. (default:
             ``False``)
@@ -124,7 +124,7 @@ class Frame(object):
         return result
 
     # TODO: if one choose what channels to plot - use ``extent`` kwarg.
-    def plot(self, freqs=None, times=None, plot_indexes=True):
+    def plot(self, plot_indexes=True):
         if plt is not None:
             plt.imshow(self.values, interpolation='none', aspect='auto',
                        cmap=plt.cm.Reds)
@@ -136,6 +136,34 @@ class Frame(object):
             plt.xlabel("time steps")
             plt.ylabel("frequency ch. #")
             plt.show()
+
+    def add_pulse(self, t_0, amp, width, dm=0.):
+        """
+        Add pulse to frame.
+
+        :param t_0:
+            Arrival time of pulse at highest frequency channel [s].
+        :param amp:
+            Amplitude of pulse.
+        :param width:
+            Width of gaussian pulse [s] (in time domain).
+        :param dm: (optional)
+            Dispersion measure of pulse [cm^3 / pc]. (Default: ``0.``)
+
+        """
+        # MHz ** 2 * cm ** 3 * s / pc
+        k = 1. / (2.410331 * 10 ** (-4))
+
+        # Calculate arrival times for all channels
+        t0_all = (t_0 * np.ones(self.n_nu)[:, np.newaxis] +
+                  k * dm * (1. / self.nu ** 2. -
+                            1. / self.nu_0 ** 2.))[0]
+        pulse = amp * np.exp(-0.5 * (self.t -
+                                     t0_all[:, np.newaxis]) ** 2 / width ** 2.)
+        self.values += pulse
+
+    def save_to_txt(self, fname):
+        np.savetxt(fname, self.values.T)
 
 
 class DataFrame(Frame):
@@ -159,9 +187,6 @@ class SimFrame(Frame):
     Class that represents the simulation of data.
 
     """
-    def save_to_txt(self, fname):
-        np.savetxt(fname, self.values.T)
-
     def add_noise(self, std, kamp=None, kscale=None, kmean=0.0):
         """
         Add noise to frame using specified gaussian process or simple
@@ -192,28 +217,3 @@ class SimFrame(Frame):
                 gp_samples = np.sqrt(gp1.sample(self.nu) ** 2. +
                                      gp2.sample(self.nu) ** 2.)
                 self.values[:, i] += gp_samples
-
-    def add_pulse(self, t_0, amp, width, dm=0.):
-        """
-        Add pulse to frame.
-
-        :param t_0:
-            Arrival time of pulse at highest frequency channel [s].
-        :param amp:
-            Amplitude of pulse.
-        :param width:
-            Width of gaussian pulse [s] (in time domain).
-        :param dm: (optional)
-            Dispersion measure of pulse [cm^3 / pc]. (Default: ``0.``)
-
-        """
-        # MHz ** 2 * cm ** 3 * s / pc
-        k = 1. / (2.410331 * 10 ** (-4))
-
-        # Calculate arrival times for all channels
-        t0_all = (t_0 * np.ones(self.n_nu)[:, np.newaxis] +
-                  k * dm * (1. / self.nu ** 2. -
-                            1. / self.nu_0 ** 2.))[0]
-        pulse = amp * np.exp(-0.5 * (self.t -
-                                     t0_all[:, np.newaxis]) ** 2 / width ** 2.)
-        self.values += pulse
