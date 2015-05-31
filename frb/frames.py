@@ -148,7 +148,6 @@ class SimFrame(Frame):
     def save_to_txt(self, fname):
         np.savetxt(fname, self.values.T)
 
-    # FIXME: Use Rice distribution instead of normal
     def add_noise(self, std, kamp=None, kscale=None, kmean=0.0):
         """
         Add noise to frame using specified gaussian process or simple
