@@ -9,6 +9,8 @@ except ImportError:
     plt = None
 
 
-frame = SimFrame(128, 1000, 1676., 0., 16. / 128., 0.001)
-frame.add_pulse(0.3, 1.3, 0.0015, dm=700.)
-frame.add_noise(0.5, )
+if __name__ == '__name__':
+    frame = SimFrame(128, 1000, 1676., 0., 16. / 128., 0.001)
+    frame.add_pulse(0.3, 0.5, 0.0015, dm=2400.)
+    frame.add_noise(0.5)
+    frame.plot()
