@@ -166,28 +166,6 @@ class Frame(object):
     def save_to_txt(self, fname):
         np.savetxt(fname, self.values.T)
 
-
-class DataFrame(Frame):
-    """
-    Class that represents the frame of real data.
-
-    :param fname:
-        Name of txt-file with rows representing frequency channels and columns -
-        1d-time series of data for each frequency channel.
-
-    """
-    def __init__(self, fname, nu_0, t_0, dnu, dt):
-        values = np.loadtxt(fname, unpack=True)
-        n_nu, n_t = np.shape(values)
-        super(DataFrame, self).__init__(n_nu, n_t, nu_0, t_0, dnu, dt)
-        self.values += values
-
-
-class SimFrame(Frame):
-    """
-    Class that represents the simulation of data.
-
-    """
     def add_noise(self, std, kamp=None, kscale=None, kmean=0.0):
         """
         Add noise to frame using specified gaussian process or simple
@@ -214,7 +192,31 @@ class SimFrame(Frame):
         if kscale is not None and kamp is not None:
             gp1 = george.GP(kamp * kernels.ExpSquaredKernel(kscale))
             gp2 = george.GP(kamp * kernels.ExpSquaredKernel(kscale))
-            for i in xrange(self.nt):
+            for i in xrange(self.n_t):
                 gp_samples = np.sqrt(gp1.sample(self.nu) ** 2. +
                                      gp2.sample(self.nu) ** 2.)
                 self.values[:, i] += gp_samples
+
+
+class DataFrame(Frame):
+    """
+    Class that represents the frame of real data.
+
+    :param fname:
+        Name of txt-file with rows representing frequency channels and columns -
+        1d-time series of data for each frequency channel.
+
+    """
+    def __init__(self, fname, nu_0, t_0, dnu, dt):
+        values = np.loadtxt(fname, unpack=True)
+        n_nu, n_t = np.shape(values)
+        super(DataFrame, self).__init__(n_nu, n_t, nu_0, t_0, dnu, dt)
+        self.values += values
+
+
+class SimFrame(Frame):
+    """
+    Class that represents the simulation of data.
+
+    """
+    pass
