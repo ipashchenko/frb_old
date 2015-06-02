@@ -53,3 +53,22 @@ def time_interval(size_gb, n_nu, nu_max, nu_min, dt, dm_max):
     # 4 bytes in ``float``
     nt = size_gb * 10 ** 9 / (4 * n_nu * n_dm)
     return dt * nt
+
+
+def profile(dm_min, dm_max, n_dm, amp, sigma, t_max, nu_min, nu_max):
+    """
+    Function that calculates amplitudes of frequency averaged in band from
+    ``nu_min`` to ``nu_max`` for different values of de-dispersion DM (from
+    ``dm_min`` to ``dm_max`` with ``n_dm`` steps).
+
+    :param dm_min:
+    :param dm_max:
+    :param n_dm:
+    :param amp:
+    :param sigma:
+    :param t_max:
+    :param nu_min:
+    :param nu_max:
+    :return:
+        Numpy array (``n_dm``,) of amplitudes.
+    """
