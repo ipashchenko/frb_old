@@ -56,11 +56,9 @@ def search_frame(frame, dm_min, dm_max, savefig=None):
 
 
 if __name__ == '__main__':
-    from frb.frames import SimFrame
-    frame = SimFrame(128, 1000, 1676., 0., 16. / 128., 0.001)
-    frame.add_pulse(0.3, 0.5, 0.0015, dm=2400.)
-    frame.save_to_txt('fake_clean.txt')
-    frame.plot()
-    frame.add_noise(3.00)
-    frame.save_to_txt('fake_dirty.txt')
-    search_frame(frame, 0, 3000.)
+    from frb.frames import DataFrame
+    fname = '/home/ilya/code/frb/data/data.txt'
+    frame = DataFrame(fname, 1684., 0., 16. / 32., 0.001)
+    frame.add_pulse(0.4, 0.1, 0.0015, dm=700.)
+    frame.add_noise(0.10)
+    search_frame(frame, 0, 1000.)
