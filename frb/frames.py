@@ -13,6 +13,7 @@ vround = np.vectorize(round)
 vint = np.vectorize(int)
 
 
+# TODO: add masking edges
 class Frame(object):
     """
     Basic class that represents a set of regulary spaced frequency channels with
