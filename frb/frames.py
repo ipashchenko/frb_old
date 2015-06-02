@@ -207,11 +207,16 @@ class DataFrame(Frame):
         1d-time series of data for each frequency channel.
 
     """
-    def __init__(self, fname, nu_0, t_0, dnu, dt):
+    def __init__(self, fname, nu_0, t_0, dnu, dt, n_nu_discard=0):
         values = np.loadtxt(fname, unpack=True)
         n_nu, n_t = np.shape(values)
-        super(DataFrame, self).__init__(n_nu, n_t, nu_0, t_0, dnu, dt)
-        self.values += values
+        super(DataFrame, self).__init__(n_nu - n_nu_discard, n_t,
+                                        nu_0 - n_nu_discard * dnu / 2., t_0,
+                                        dnu, dt)
+        if n_nu_discard:
+            self.values += values[n_nu_discard / 2 : -n_nu_discard / 2, :]
+        else:
+            self.values += values
 
 
 class SimFrame(Frame):
