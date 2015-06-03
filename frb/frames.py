@@ -1,11 +1,6 @@
 import numpy as np
 from frb.utils import vint, vround
 try:
-    import george
-    from george import kernels
-except ImportError:
-    george = None
-try:
     import matplotlib.pyplot as plt
 except ImportError:
     plt = None
