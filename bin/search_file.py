@@ -1,11 +1,10 @@
 import os
 import sys
-import math
 import argparse
 path = os.path.normpath(os.path.join(os.path.dirname(sys.argv[0]), '..'))
 sys.path.insert(0, path)
 from frb.frames import DataFrame
-from frb.search_utils import search_frame
+from frb.search_utils import grid_dedisperse_frame, find_pulses
 try:
     import matplotlib.pyplot as plt
 except ImportError:
@@ -32,15 +31,20 @@ if __name__ == '__main__':
                         help='- mininum DM to search')
     parser.add_argument('-dm_max', action='store', dest='dm_max', type=float,
                         help='- maxmum DM to search')
-    parser.add_argument('-savefig', action='store', nargs='?', default=None,
-                        type=str, metavar='path to file', help='- file to save'
-                                                               ' figure')
+    parser.add_argument('-savefig_dyn', action='store', nargs='?',
+                        default=None, type=str, metavar='path to file',
+                        help='- file to save dyn.spectr plot')
+    parser.add_argument('-savefig_dedm', action='store', nargs='?',
+                        default=None, type=str, metavar='path to file',
+                        help='- file to save de-DM freq.averaged dyn. spectra')
 
     args = parser.parse_args()
 
     frame = DataFrame(args.fname, args.nu_max, args.t0, args.dnu, args.dt)
-    frame.plot()
+    frame.plot(savefig=args.savefig_dyn)
     dm_min = args.dm_min
     dm_max = args.dm_max
 
-    search_frame(frame, dm_min, dm_max, savefig=args.savefig)
+    dm_grid, frames_t_dedm = grid_dedisperse_frame(frame, dm_min, dm_max,
+                                                   savefig=args.savefig_dedm)
+    find_pulses(dm_grid, frames_t_dedm)
