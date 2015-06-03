@@ -5,7 +5,6 @@ import numpy as np
 path = os.path.normpath(os.path.join(os.path.dirname(sys.argv[0]), '..'))
 sys.path.insert(0, path)
 from frb.utils import delta_dm_max
-from frb.frames import vint
 from scipy.ndimage.morphology import generate_binary_structure
 from scipy.ndimage.measurements import find_objects, label, maximum_position
 try:
