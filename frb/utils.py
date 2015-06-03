@@ -1,3 +1,10 @@
+import numpy as np
+
+
+vround = np.vectorize(round)
+vint = np.vectorize(int)
+
+
 def delta_dm_max(nu_max, nu_min, dt):
     """
     Return difference in DM that corresponds to arrival time shift between
@@ -72,3 +79,14 @@ def profile(dm_min, dm_max, n_dm, amp, sigma, t_max, nu_min, nu_max):
     :return:
         Numpy array (``n_dm``,) of amplitudes.
     """
+    pass
+
+def vect_roll(aa, n):
+    """
+    Roll rows of 2D array
+    :param aa:
+    :param n:
+    :return:
+    """
+    np.roll(aa)
+
