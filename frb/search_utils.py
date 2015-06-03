@@ -15,7 +15,7 @@ except ImportError:
 
 
 # TODO: add ranking of output pulses based on square of it's label
-def search_frame(frame, dm_min, dm_max, savefig=None):
+def grid_dedisperse_frame(frame, dm_min, dm_max, savefig=None):
     # Find step for DM grid
     # Seems that ``5`` is good choice (1/200 of DM range)
     dm_delta = 5 * delta_dm_max(frame.nu_0, frame.nu_0 - frame.n_nu * frame.dnu,
@@ -79,7 +79,7 @@ def find_pulses(dm_grid, frames_t_dedm, **kwargs):
         n_label = int(np.where(counts == max(counts))[0] + 1)
         n_labels.append(n_label)
 
-    # center_of_mass(frames_t_dedm, labeled_array, n_labels)
+    # center_of_mass(frames_t_dedm, labeled_array, n_labels) is poor choice
     pos = maximum_position(frames_t_dedm, labels=labeled_array, index=n_labels)
     print 'Found ', len(n_labels), ' pulses'
     for i in range(len(n_labels)):
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     # plt.ylabel('Freq. channel')
     # plt.colorbar()
     # plt.savefig('pulse_dirty1.png')
-    dm_grid, frames_t_dedm = search_frame(frame, 0, 1000.)
+    dm_grid, frames_t_dedm = grid_dedisperse_frame(frame, 0, 1000.)
     # plt.close()
     # plt.imshow(frames_t_dedm, interpolation='none', aspect='auto')
     # plt.xlabel('De-dispersed by DM freq.averaged frame')
