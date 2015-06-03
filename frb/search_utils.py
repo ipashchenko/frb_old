@@ -41,40 +41,22 @@ def search_frame(frame, dm_min, dm_max, savefig=None):
     #     plt.close()
 
 
-if __name__ == '__main__':
-    from frb.frames import DataFrame
-    fname = '/home/ilya/code/frb/data/data.txt'
-    # pulses at t=0.2 and 0.65 with DM=480
-    frame = DataFrame(fname, 1684., 0., 16. / 32., 0.001)
-    # frame = SimFrame(128, 1000, 1676., 0., 16. / 128., 0.001)
-    frame.add_pulse(0.3, 0.05, 0.0015, dm=200.)
-    frame.add_pulse(0.9, 0.1, 0.003, dm=700.)
-    # plt.close()
-    # plt.imshow(frame.values, interpolation='none', aspect='auto')
-    # plt.xlabel('Time')
-    # plt.ylabel('Freq. channel')
-    # plt.colorbar()
-    # plt.savefig('pulse_clean1.png')
-    # frame.add_noise(0.1)
-    # plt.close()
-    # plt.imshow(frame.values, interpolation='none', aspect='auto')
-    # plt.xlabel('Time')
-    # plt.ylabel('Freq. channel')
-    # plt.colorbar()
-    # plt.savefig('pulse_dirty1.png')
-    dm_used, frames_dedm = search_frame(frame, 0, 1000.)
-    # plt.close()
-    # plt.imshow(frames_dedm, interpolation='none', aspect='auto')
-    # plt.xlabel('De-dispersed by DM freq.averaged frame')
-    # plt.ylabel('DM correction')
-    # plt.yticks(np.linspace(0, len(dm_used) - 10, 5, dtype=int),
-    #            vint(dm_used[np.linspace(0, len(dm_used) - 10, 5, dtype=int)]))
-    # plt.colorbar()
-    # plt.savefig('stripes1.png')
+def find_pulses(dm_grid, frames_t_dedm, **kwargs):
+    """
+    Search frequency averaged de-dispersed dynamical spectra dependency on DM
+    to find broadband pulses.
 
+    :param dm_grid:
+        Array-like of used DM values to produce ``frames_t_dedm``.
+    :param frames_t_dedm:
+        Sequence of frequency averaged de-dispersed dynamical spectra.
+    :param kwargs:
+    :return:
+        Pulse objects.
+    """
     # Now find stripes in "DM-correction vs. freq.averaged" plane
-    threshold = np.percentile(frames_dedm.flatten(), 98)
-    a = frames_dedm.copy()
+    threshold = np.percentile(frames_t_dedm.flatten(), 98)
+    a = frames_t_dedm.copy()
     # Keep only tail of distribution with signal (and correlated noise:)
     a[a < threshold] = 0
     s = generate_binary_structure(2, 2)
@@ -97,8 +79,42 @@ if __name__ == '__main__':
         n_label = int(np.where(counts == max(counts))[0] + 1)
         n_labels.append(n_label)
 
-    # center_of_mass(frames_dedm, labeled_array, n_labels)
-    pos = maximum_position(frames_dedm, labels=labeled_array, index=n_labels)
+    # center_of_mass(frames_t_dedm, labeled_array, n_labels)
+    pos = maximum_position(frames_t_dedm, labels=labeled_array, index=n_labels)
     print 'Found ', len(n_labels), ' pulses'
     for i in range(len(n_labels)):
-        print "at time ", pos[i][1] / 1000., ' with DM = ', dm_used[pos[i][0]]
+        print "at time ", pos[i][1] / 1000., ' with DM = ', dm_grid[pos[i][0]]
+
+
+if __name__ == '__main__':
+    from frb.frames import DataFrame
+    fname = '/home/ilya/code/frb/data/data.txt'
+    # pulses at t=0.2 and 0.65 with DM=480
+    frame = DataFrame(fname, 1684., 0., 16. / 32., 0.001)
+    # frame = SimFrame(128, 1000, 1676., 0., 16. / 128., 0.001)
+    frame.add_pulse(0.3, 0.05, 0.0015, dm=200.)
+    frame.add_pulse(0.9, 0.1, 0.003, dm=700.)
+    # plt.close()
+    # plt.imshow(frame.values, interpolation='none', aspect='auto')
+    # plt.xlabel('Time')
+    # plt.ylabel('Freq. channel')
+    # plt.colorbar()
+    # plt.savefig('pulse_clean1.png')
+    # frame.add_noise(0.1)
+    # plt.close()
+    # plt.imshow(frame.values, interpolation='none', aspect='auto')
+    # plt.xlabel('Time')
+    # plt.ylabel('Freq. channel')
+    # plt.colorbar()
+    # plt.savefig('pulse_dirty1.png')
+    dm_grid, frames_t_dedm = search_frame(frame, 0, 1000.)
+    # plt.close()
+    # plt.imshow(frames_t_dedm, interpolation='none', aspect='auto')
+    # plt.xlabel('De-dispersed by DM freq.averaged frame')
+    # plt.ylabel('DM correction')
+    # plt.yticks(np.linspace(0, len(dm_used) - 10, 5, dtype=int),
+    #            vint(dm_used[np.linspace(0, len(dm_used) - 10, 5, dtype=int)]))
+    # plt.colorbar()
+    # plt.savefig('stripes1.png')
+    find_pulses(dm_grid, frames_t_dedm)
+
