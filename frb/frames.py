@@ -216,11 +216,3 @@ class DataFrame(Frame):
             self.values += values[n_nu_discard / 2 : -n_nu_discard / 2, :]
         else:
             self.values += values
-
-
-class SimFrame(Frame):
-    """
-    Class that represents the simulation of data.
-
-    """
-    pass
