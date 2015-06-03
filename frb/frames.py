@@ -1,4 +1,5 @@
 import numpy as np
+from frb.utils import vint, vround
 try:
     import george
     from george import kernels
@@ -8,9 +9,6 @@ try:
     import matplotlib.pyplot as plt
 except ImportError:
     plt = None
-
-vround = np.vectorize(round)
-vint = np.vectorize(int)
 
 
 # TODO: add masking edges
@@ -125,8 +123,9 @@ class Frame(object):
         return result
 
     # TODO: if one choose what channels to plot - use ``extent`` kwarg.
-    def plot(self, plot_indexes=True):
+    def plot(self, plot_indexes=True, savefig=None):
         if plt is not None:
+            plt.figure()
             plt.imshow(self.values, interpolation='none', aspect='auto')
             plt.colorbar()
             if not plot_indexes:
@@ -135,7 +134,11 @@ class Frame(object):
                 # frame.t[np.linspace(0, 999, 10, dtype=int)])
             plt.xlabel("time steps")
             plt.ylabel("frequency ch. #")
+            plt.title('Dynamical spectra')
+            if savefig is not None:
+                plt.savefig(savefig, bbox_inches='tight')
             plt.show()
+            plt.close()
 
     def add_pulse(self, t_0, amp, width, dm=0.):
         """
