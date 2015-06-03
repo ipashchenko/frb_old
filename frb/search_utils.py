@@ -4,7 +4,7 @@ import math
 import numpy as np
 path = os.path.normpath(os.path.join(os.path.dirname(sys.argv[0]), '..'))
 sys.path.insert(0, path)
-from frb.utils import delta_dm_max
+from frb.utils import delta_dm_max, vint
 from scipy.ndimage.morphology import generate_binary_structure
 from scipy.ndimage.measurements import find_objects, label, maximum_position
 try:
@@ -13,7 +13,6 @@ except ImportError:
     plt = None
 
 
-# TODO: add ranking of output pulses based on square of it's label
 def grid_dedisperse_frame(frame, dm_min, dm_max, savefig=None):
     # Find step for DM grid
     # Seems that ``5`` is good choice (1/200 of DM range)
@@ -25,21 +24,28 @@ def grid_dedisperse_frame(frame, dm_min, dm_max, savefig=None):
     # Accumulator of de-dispersed frequency averaged frames
     frames_t_dedm = list()
     for dm in dm_grid:
-        print "Searching DM = ", dm, " cm^3 / pc"
         _frame = frame.de_disperse(dm=dm, replace=False)
         _frame_t = frame.average_in_freq(_frame)
         frames_t_dedm.append(_frame_t)
 
     frames_t_dedm = np.array(frames_t_dedm)
 
+    # Plot results
+    if savefig is not None:
+        plt.imshow(frames_t_dedm, interpolation='none', aspect='auto')
+        plt.xlabel('De-dispersed by DM freq.averaged dyn.spectr')
+        plt.ylabel('DM correction')
+        plt.yticks(np.linspace(0, len(dm_grid) - 10, 5, dtype=int),
+                   vint(dm_grid[np.linspace(0, len(dm_grid) - 10, 5, dtype=int)]))
+        plt.colorbar()
+        plt.savefig(savefig, bbox_inches='tight')
+        plt.show()
+        plt.close()
+
     return dm_grid, frames_t_dedm
 
-    #  Print and (optionally) plot results
-    # if savefig is not None:
-    #     plt.savefig(savefig, bbox_inches='tight')
-    #     plt.close()
 
-
+# TODO: add ranking of output pulses based on square of it's label
 def find_pulses(dm_grid, frames_t_dedm, **kwargs):
     """
     Search frequency averaged de-dispersed dynamical spectra dependency on DM
@@ -53,6 +59,8 @@ def find_pulses(dm_grid, frames_t_dedm, **kwargs):
     :return:
         Pulse objects.
     """
+    # TODO: fit Rayleigh to density of ``frames_t_dedm`` values to find
+    # ``threshold``
     # Now find stripes in "DM-correction vs. freq.averaged" plane
     threshold = np.percentile(frames_t_dedm.flatten(), 98)
     a = frames_t_dedm.copy()
@@ -67,6 +75,7 @@ def find_pulses(dm_grid, frames_t_dedm, **kwargs):
     dm_objects = list()
     for obj in objects:
         freq_slice = obj[0]
+        # TODO: convert DM to pixel numbers
         if int(freq_slice.stop - freq_slice.start) > 50:
             dm_objects.append(obj)
 
@@ -106,14 +115,7 @@ if __name__ == '__main__':
     # plt.ylabel('Freq. channel')
     # plt.colorbar()
     # plt.savefig('pulse_dirty1.png')
-    dm_grid, frames_t_dedm = grid_dedisperse_frame(frame, 0, 1000.)
-    # plt.close()
-    # plt.imshow(frames_t_dedm, interpolation='none', aspect='auto')
-    # plt.xlabel('De-dispersed by DM freq.averaged frame')
-    # plt.ylabel('DM correction')
-    # plt.yticks(np.linspace(0, len(dm_used) - 10, 5, dtype=int),
-    #            vint(dm_used[np.linspace(0, len(dm_used) - 10, 5, dtype=int)]))
-    # plt.colorbar()
-    # plt.savefig('stripes1.png')
+    dm_grid, frames_t_dedm = grid_dedisperse_frame(frame, 0, 1000.,
+                                                   savefig='test.png')
     find_pulses(dm_grid, frames_t_dedm)
 
