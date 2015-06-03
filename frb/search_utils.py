@@ -21,25 +21,19 @@ def search_frame(frame, dm_min, dm_max, savefig=None):
     dm_delta = 5 * delta_dm_max(frame.nu_0, frame.nu_0 - frame.n_nu * frame.dnu,
                                 frame.dt)
 
-    # Find length of DM grid
-    # Actually, to build grid i can use
-    # np.arange(dm_min, dm_max, dm_delta)
-    n_dm = (dm_max - dm_min) / dm_delta
-    n_dm = int(math.ceil(n_dm))
-    dm_used = list()
-    frames_dedm = list()
-    for i in xrange(n_dm):
-        dm = dm_min + (i + 1) * dm_delta
+    # Create grid of searched DM-values
+    dm_grid = np.arange(dm_min, dm_max, dm_delta)
+    # Accumulator of de-dispersed frequency averaged frames
+    frames_t_dedm = list()
+    for dm in dm_grid:
         print "Searching DM = ", dm, " cm^3 / pc"
         _frame = frame.de_disperse(dm=dm, replace=False)
         _frame_t = frame.average_in_freq(_frame)
-        frames_dedm.append(_frame_t)
-        dm_used.append(dm)
+        frames_t_dedm.append(_frame_t)
 
-    dm_used = np.array(dm_used)
-    frames_dedm = np.array(frames_dedm)
+    frames_t_dedm = np.array(frames_t_dedm)
 
-    return dm_used, frames_dedm
+    return dm_grid, frames_t_dedm
 
     #  Print and (optionally) plot results
     # if savefig is not None:
@@ -61,7 +55,7 @@ if __name__ == '__main__':
     # plt.ylabel('Freq. channel')
     # plt.colorbar()
     # plt.savefig('pulse_clean1.png')
-    frame.add_noise(0.1)
+    # frame.add_noise(0.1)
     # plt.close()
     # plt.imshow(frame.values, interpolation='none', aspect='auto')
     # plt.xlabel('Time')
