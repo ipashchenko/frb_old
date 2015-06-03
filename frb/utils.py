@@ -81,12 +81,38 @@ def profile(dm_min, dm_max, n_dm, amp, sigma, t_max, nu_min, nu_max):
     """
     pass
 
-def vect_roll(aa, n):
+
+def roll2d(a, shift, axis=0):
     """
     Roll rows of 2D array
-    :param aa:
-    :param n:
+    :param a:
+        2D numpy array.
+    :param shift:
+        Array-like of shifts along axis ``axis``.
     :return:
     """
-    np.roll(aa)
+
+    a = np.atleast_2d(a)
+    shift = np.atleast_1d(shift)
+    # Length along specified axis
+    n = a.shape[axis]
+    assert(a.shape[0 if axis else 1] == len(shift))
+
+    if not np.any(shift):
+        return a
+
+    shift %= n
+
+    func_dict = {1: np.vstack, 0: np.dstack}
+    indices = func_dict[axis]([np.concatenate((np.arange(n - i, n),
+                                               np.arange(n - i))) for i in
+                               shift])
+
+    row, col = np.indices(a.shape)
+    if axis == 1:
+        col = indices
+    elif axis == 0:
+        row = indices
+
+    return a[row, col]
 
