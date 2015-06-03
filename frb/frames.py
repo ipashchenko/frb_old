@@ -1,6 +1,11 @@
 import numpy as np
 from frb.utils import vint, vround
 try:
+    import george
+    from george import kernels
+except ImportError:
+    george = None
+try:
     import matplotlib.pyplot as plt
 except ImportError:
     plt = None
@@ -187,6 +192,8 @@ class Frame(object):
                                          self.n_nu)).reshape(np.shape(self.values))
         self.values += noise
         if kscale is not None and kamp is not None:
+            if not george:
+                raise Exception("Install george for correlated noise option.")
             gp1 = george.GP(kamp * kernels.ExpSquaredKernel(kscale))
             gp2 = george.GP(kamp * kernels.ExpSquaredKernel(kscale))
             for i in xrange(self.n_t):
