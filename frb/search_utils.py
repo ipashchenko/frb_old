@@ -62,7 +62,7 @@ def find_pulses(dm_grid, frames_t_dedm, **kwargs):
     # TODO: fit Rayleigh to density of ``frames_t_dedm`` values to find
     # ``threshold``
     # Now find stripes in "DM-correction vs. freq.averaged" plane
-    threshold = np.percentile(frames_t_dedm.flatten(), 98)
+    threshold = np.percentile(frames_t_dedm.ravel(), 98)
     a = frames_t_dedm.copy()
     # Keep only tail of distribution with signal (and correlated noise:)
     a[a < threshold] = 0
@@ -84,7 +84,7 @@ def find_pulses(dm_grid, frames_t_dedm, **kwargs):
     n_labels = list()
     for obj in dm_objects:
         # Counts of all labels but zero
-        counts = np.bincount(labeled_array[obj].flatten())[1:]
+        counts = np.bincount(labeled_array[obj].ravel())[1:]
         n_label = int(np.where(counts == max(counts))[0] + 1)
         n_labels.append(n_label)
 
