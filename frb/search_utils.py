@@ -76,6 +76,7 @@ def find_pulses(dm_grid, frames_t_dedm, **kwargs):
     for obj in objects:
         freq_slice = obj[0]
         # TODO: convert DM to pixel numbers
+        # Classification step
         if int(freq_slice.stop - freq_slice.start) > 50:
             dm_objects.append(obj)
 
