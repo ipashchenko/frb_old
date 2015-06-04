@@ -84,12 +84,16 @@ def profile(dm_min, dm_max, n_dm, amp, sigma, t_max, nu_min, nu_max):
 
 def roll2d(a, shift, axis=0):
     """
-    Roll rows of 2D array
+    Roll along axis 2D numpy array.
     :param a:
         2D numpy array.
     :param shift:
         Array-like of shifts along axis ``axis``.
+    :param axis: (optional)
+        Axis along which to shift array. (default: ``0``)
     :return:
+        Shifted 2D numpy array.
+        
     """
 
     a = np.atleast_2d(a)
@@ -115,4 +119,3 @@ def roll2d(a, shift, axis=0):
         row = indices
 
     return a[row, col]
-
