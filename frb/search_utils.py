@@ -74,10 +74,10 @@ def find_pulses(dm_grid, frames_t_dedm, **kwargs):
     # Find only objects that are elongated along DM axis
     dm_objects = list()
     for obj in objects:
-        freq_slice = obj[0]
+        dm_slice = obj[0]
         # TODO: convert DM to pixel numbers
         # Classification step
-        if int(freq_slice.stop - freq_slice.start) > 50:
+        if int(dm_slice.stop - dm_slice.start) > 50:
             dm_objects.append(obj)
 
     # Find what labels number corresponds to such objects
