@@ -1,5 +1,5 @@
 import numpy as np
-from frb.utils import vint, vround, roll2d
+from utils import vint, vround, roll2d
 
 try:
     import george
@@ -44,6 +44,15 @@ class Frame(object):
         self.t = t_0 + t * dt
         self.dt = dt
         self.dnu = dnu
+
+    def add_values(self, array):
+        """
+        Add dyn. spectra in form of numpy array (#ch, #t,) to instance.
+        :param array:
+        """
+        array = np.atleast_2d(array)
+        assert self.values.shape == array.shape
+        self.values += array
 
     def slice(self, channels, times):
         """
@@ -198,6 +207,7 @@ class Frame(object):
                 self.values[:, i] += gp_samples
 
 
+# TODO: should i use just one class ``Frame`` but different io-methods?
 class DataFrame(Frame):
     """
     Class that represents the frame of real data.
