@@ -1,6 +1,5 @@
 import os
 import sys
-import math
 import numpy as np
 path = os.path.normpath(os.path.join(os.path.dirname(sys.argv[0]), '..'))
 sys.path.insert(0, path)
@@ -36,7 +35,8 @@ def grid_dedisperse_frame(frame, dm_min, dm_max, savefig=None):
         plt.xlabel('De-dispersed by DM freq.averaged dyn.spectr')
         plt.ylabel('DM correction')
         plt.yticks(np.linspace(0, len(dm_grid) - 10, 5, dtype=int),
-                   vint(dm_grid[np.linspace(0, len(dm_grid) - 10, 5, dtype=int)]))
+                   vint(dm_grid[np.linspace(0, len(dm_grid) - 10, 5,
+                                            dtype=int)]))
         plt.colorbar()
         plt.savefig(savefig, bbox_inches='tight')
         plt.show()
@@ -45,8 +45,9 @@ def grid_dedisperse_frame(frame, dm_min, dm_max, savefig=None):
     return dm_grid, frames_t_dedm
 
 
-# TODO: add ranking of output pulses based on square of it's label
-def find_pulses(dm_grid, frames_t_dedm, **kwargs):
+# TODO: add ranking of output pulses based on square of it's size
+# TODO: ``dm_range`` here in pixels.
+def find_pulses(dm_grid, frames_t_dedm, perc=99.95, dm_range=50):
     """
     Search frequency averaged de-dispersed dynamical spectra dependency on DM
     to find broadband pulses.
@@ -55,20 +56,21 @@ def find_pulses(dm_grid, frames_t_dedm, **kwargs):
         Array-like of used DM values to produce ``frames_t_dedm``.
     :param frames_t_dedm:
         Sequence of frequency averaged de-dispersed dynamical spectra.
-    :param kwargs:
     :return:
         Pulse objects.
     """
     # TODO: fit Rayleigh to density of ``frames_t_dedm`` values to find
     # ``threshold``
     # Now find stripes in "DM-correction vs. freq.averaged" plane
-    threshold = np.percentile(frames_t_dedm.ravel(), 98)
+    # TODO: I should find no more then ``nobjects`` objects
+    threshold = np.percentile(frames_t_dedm.ravel(), perc)
     a = frames_t_dedm.copy()
     # Keep only tail of distribution with signal (and correlated noise:)
     a[a < threshold] = 0
     s = generate_binary_structure(2, 2)
     # Label image
     labeled_array, num_features = label(a, structure=s)
+    print "Checking ", num_features, " objects..."
 
     objects = find_objects(labeled_array)
     # Find only objects that are elongated along DM axis
@@ -77,7 +79,7 @@ def find_pulses(dm_grid, frames_t_dedm, **kwargs):
         dm_slice = obj[0]
         # TODO: convert DM to pixel numbers
         # Classification step
-        if int(dm_slice.stop - dm_slice.start) > 50:
+        if int(dm_slice.stop - dm_slice.start) > dm_range:
             dm_objects.append(obj)
 
     # Find what labels number corresponds to such objects
@@ -95,28 +97,38 @@ def find_pulses(dm_grid, frames_t_dedm, **kwargs):
         print "at time ", pos[i][1] / 1000., ' with DM = ', dm_grid[pos[i][0]]
 
 
+def n_objects(image, threshold):
+    """
+    Find number of objects in image using specified threshold value.
+    :param image:
+        2D-Numpy array of image
+    :param threshold:
+        Threshold value. Image regions with values less then ``threshold`` will
+        be zero'd.
+    :return:
+        Number of objects found.
+
+    """
+    a = image.copy()
+    a[a < threshold] = 0
+    s = generate_binary_structure(2, 2)
+    # Label image
+    labeled_array, num_features = label(a, structure=s)
+    return num_features
+
+
 if __name__ == '__main__':
     from frb.frames import DataFrame
-    fname = '/home/ilya/code/frb/data/data.txt'
-    # pulses at t=0.2 and 0.65 with DM=480
-    frame = DataFrame(fname, 1684., 0., 16. / 32., 0.001)
-    # frame = SimFrame(128, 1000, 1676., 0., 16. / 128., 0.001)
-    frame.add_pulse(0.3, 0.05, 0.0015, dm=200.)
-    frame.add_pulse(0.9, 0.1, 0.003, dm=700.)
-    # plt.close()
-    # plt.imshow(frame.values, interpolation='none', aspect='auto')
-    # plt.xlabel('Time')
-    # plt.ylabel('Freq. channel')
-    # plt.colorbar()
-    # plt.savefig('pulse_clean1.png')
-    # frame.add_noise(0.1)
-    # plt.close()
-    # plt.imshow(frame.values, interpolation='none', aspect='auto')
-    # plt.xlabel('Time')
-    # plt.ylabel('Freq. channel')
-    # plt.colorbar()
-    # plt.savefig('pulse_dirty1.png')
-    dm_grid, frames_t_dedm = grid_dedisperse_frame(frame, 0, 1000.,
-                                                   savefig='test.png')
-    find_pulses(dm_grid, frames_t_dedm)
-
+    fname = '/home/ilya/code/frb/data/90_sec_wb_raes08a_128ch'
+    frame_orig = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
+    frame = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
+    # frame.add_pulse(30., 0.3, 0.0015, dm=200.)
+    # frame.add_pulse(60., 0.2, 0.003, dm=700.)
+    # frame.add_pulse(10., 0.3, 0.003, dm=500.)
+    # frame.add_pulse(40., 0.2, 0.003, dm=400.)
+    # for i in range(100):
+    #     frame.add_pulse(np.random.uniform(0, 90), np.random.uniform(0.05, 0.3),
+    #                     np.random.uniform(0.0005, 0.004),
+    #                     dm=np.random.uniform(0, 1000))
+    dm_grid, frames_t_dedm = grid_dedisperse_frame(frame, 0, 1000.)
+    # find_pulses(dm_grid, frames_t_dedm)
