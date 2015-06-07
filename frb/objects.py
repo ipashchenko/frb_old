@@ -77,6 +77,18 @@ class Objects(object):
         _objects['max'] = _max
         _objects['max_pos'] = max_pos
         self.objects = _objects
+        self._sort()
+
+    def _sort(self):
+        self.objects = self.objects[np.lexsort((self.objects['dx'],
+                                                self.objects['dy']))[::-1]]
+
+    def __add__(self, other):
+        values = other.objects.copy()
+        values['label'] += len(self.objects)
+        self.objects = np.concatenate((self.objects, values))
+        self._sort()
+        return self
 
     @property
     def dx(self):
