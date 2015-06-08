@@ -257,3 +257,4 @@ if __name__ == '__main__':
     objects1 = Objects(frames_t_dedm1, dm_grid1, frame1.t)
     objects2 = Objects(frames_t_dedm2, dm_grid2, frame2.t)
     objects3 = Objects(frames_t_dedm3, dm_grid3, frame3.t)
+    result = find_close_many([objects1, objects2, objects3], dt=1., dm=150.)
