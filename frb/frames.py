@@ -79,7 +79,12 @@ class Frame(object):
         # Find what number of time bins corresponds to this shifts
         nt_all = vint(vround(dt_all / self.dt))
         # Roll each axis (freq. channel) to each own number of time steps.
-        values = roll2d(self.values, -nt_all, axis=1)
+        values = list()
+        for i in range(self.n_nu):
+            values.append(np.roll(self.values[i], -nt_all[i]))
+        values = np.vstack(values)
+        #values = roll2d(self.values, -nt_all, axis=1)
+
         if replace:
             self.values = values[:, :]
         return values
