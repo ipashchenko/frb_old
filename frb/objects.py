@@ -26,7 +26,94 @@ def n_objects(image, threshold):
     return num_features
 
 
-# TODO: Create abstract base class for arbitrary image and subclass it.
+class ImageObjects(object):
+    """
+    Abstract class for finding and handling image objects.
+
+    :param image:
+        2D numpy array with image.
+    :param perc:
+        Percent of image values to blank while labeling image with objects.
+
+    """
+    def __init__(self, image, perc):
+        threshold = np.percentile(image.ravel(), perc)
+        a = image.copy()
+        # Keep only tail of distribution with signal (and correlated noise:)
+        a[a < threshold] = 0
+        s = generate_binary_structure(2, 2)
+        # Label image
+        labeled_array, num_features = label(a, structure=s)
+        # Find objects
+        objects = find_objects(labeled_array)
+        # Container of object's properties
+        _objects = np.empty(num_features, dtype=[('label', 'int'),
+                                                 ('dx', '<f8'),
+                                                 ('dy', '<f8'),
+                                                 ('max_pos', 'int',
+                                                  (2,))])
+
+        labels = np.arange(num_features) + 1
+        dx = [int(obj[1].stop - obj[1].start) for obj in objects]
+        dy = [int(obj[0].stop - obj[0].start) for obj in objects]
+
+        # Filling objects structured array
+        _objects['label'] = labels
+        _objects['dx'] = dx
+        _objects['dy'] = dy
+        self.objects = _objects
+        self._classify()
+        self._sort()
+        self.max_pos = self._find_positions(image, labeled_array)
+
+    def _find_positions(self, image, labeled_array):
+        return maximum_position(image, labels=labeled_array, index=self.label)
+
+    def _sort(self):
+        raise NotImplementedError
+
+    def _classify(self):
+        """
+        Method that select only image objects with desirable properties.
+        """
+        raise NotImplementedError
+
+    def plot(self, image, labels=None):
+        """
+        Overplot image with found labelled objects,
+        """
+        pass
+
+    def save_txt(self, fname):
+        """
+        Save found object to text file.
+        """
+        np.savetxt(fname, self.objects)
+
+    @property
+    def dx(self):
+        return self.objects['dx']
+
+    @property
+    def dy(self):
+        return self.objects['dy']
+
+    @property
+    def label(self):
+        return self.objects['label']
+
+    @property
+    def max_pos(self):
+        return self.objects['max_pos']
+
+    @max_pos.setter
+    def max_pos(self, max_pos):
+        self.objects['max_pos'] = max_pos
+
+    def __len__(self):
+        return len(self.objects)
+
+
 class Objects(object):
     """
     Class that describes collections of labeled regions in image.
@@ -37,7 +124,14 @@ class Objects(object):
         Array-like of y-coordinates.
     :param t_grid:
         Array-like of x-coordinates.
+
+    :notes:
+        Instances of this class doesn't need original image so it could be
+        deleted right after instantiation.
     """
+    # TODO: Add parameters of classification - should it be function that will
+    # be ``map``-ed to sequence of candidates or ``filter`` them?
+    # TODO: Abstract class shouldn't use ``dm_grid`` & ``t_grid``.
     def __init__(self, image, dm_grid, t_grid, perc=99.95):
         self.t_grid = t_grid
         self.dm_grid = dm_grid
@@ -51,7 +145,6 @@ class Objects(object):
         # Label image
         labeled_array, num_features = label(a, structure=s)
         # Find objects
-        # TODO: Check that objects in list are sorted (thus, 1 goes first, ...)
         objects = find_objects(labeled_array)
         # Container of object's properties
         _objects = np.empty(num_features, dtype=[('label', 'int'),
@@ -74,11 +167,12 @@ class Objects(object):
         self.objects = _objects
         self._classify()
         self._sort()
-        self.max_pos = self.find_positions(image, labeled_array)
+        self.max_pos = self._find_positions(image, labeled_array)
 
-    def find_positions(self, image, labeled_array):
+    def _find_positions(self, image, labeled_array):
         return maximum_position(image, labels=labeled_array, index=self.label)
 
+    # TODO: Sort using square of size (dx * dy)
     def _sort(self):
         self.objects = self.objects[np.lexsort((self.dx, self.dy))[::-1]]
 
@@ -94,9 +188,16 @@ class Objects(object):
                                                    self.d_t > dt)]
         self._sort()
 
+    def plot(self, image, labels=None):
+        """
+        Overplot image with found labelled objects,
+        """
+        pass
+
     def save_txt(self, fname):
         np.savetxt(fname, self.objects)
 
+    # TODO: I need it only in subclasses of ABC (when ``t_grid`` is available).
     def __add__(self, other):
         values = other.objects.copy()
         # Keep each own's numbering to show it later.
@@ -113,10 +214,12 @@ class Objects(object):
     def dy(self):
         return self.objects['dy']
 
+    # TODO: Should be available if grids are given
     @property
     def d_t(self):
         return self.objects['dx'] * self.t_step
 
+    # TODO: Should be available if grids are given
     @property
     def d_dm(self):
         return self.objects['dy'] * self.dm_step
@@ -133,14 +236,17 @@ class Objects(object):
     def max_pos(self, max_pos):
         self.objects['max_pos'] = max_pos
 
+    # TODO: Should be available if grids are given
     @property
     def dm(self):
         return self.dm_grid[self.max_pos[:, 0]]
 
+    # TODO: Should be available if grids are given
     @property
     def t(self):
         return self.t_grid[self.max_pos[:, 1]]
 
+    # TODO: Should be available if grids are given
     @property
     def tdm(self):
         return np.vstack((self.t, self.dm)).T
@@ -150,7 +256,7 @@ class Objects(object):
 
 
 # FIXME: Currently it saves only one of two close candidates. Should save 2.
-# TODO: Abstract for case of 2 arrays.
+# TODO: Create abstract function for case of 2 arrays.
 def find_close_2(obj1, obj2, dt=0.1, dm=200):
     """
     Function that finds close objects in (t, DM)-space for 2 ``Objects``
@@ -221,28 +327,28 @@ if __name__ == '__main__':
     frame1.add_pulse(60., 0.175, 0.003, dm=500.)
     frame1.add_pulse(70., 0.15, 0.003, dm=500.)
     frame1.add_pulse(80., 0.125, 0.003, dm=500.)
-    frame2 = DataFrame(fname, 1684., 1., 16. / 128., 0.001)
-    frame2.add_pulse(15., 0.3, 0.003, dm=500.)
-    frame2.add_pulse(20., 0.275, 0.003, dm=500.)
-    frame2.add_pulse(35., 0.25, 0.003, dm=500.)
-    frame2.add_pulse(40., 0.225, 0.003, dm=500.)
-    frame2.add_pulse(55., 0.2, 0.003, dm=500.)
-    frame2.add_pulse(60., 0.175, 0.003, dm=500.)
-    frame2.add_pulse(75., 0.15, 0.003, dm=500.)
-    frame2.add_pulse(80., 0.125, 0.003, dm=500.)
-    frame3 = DataFrame(fname, 1684., 1., 16. / 128., 0.001)
-    frame3.add_pulse(15., 0.3, 0.003, dm=500.)
-    frame3.add_pulse(20., 0.275, 0.003, dm=500.)
-    frame3.add_pulse(39., 0.25, 0.003, dm=500.)
-    frame3.add_pulse(40., 0.225, 0.003, dm=500.)
-    frame3.add_pulse(51., 0.2, 0.003, dm=500.)
-    frame3.add_pulse(65., 0.175, 0.003, dm=500.)
-    frame3.add_pulse(75., 0.15, 0.003, dm=500.)
-    frame3.add_pulse(87., 0.125, 0.003, dm=500.)
-    dm_grid1, frames_t_dedm1 = grid_dedisperse_frame(frame1, 0, 1000.)
-    dm_grid2, frames_t_dedm2 = grid_dedisperse_frame(frame2, 0, 1000.)
-    dm_grid3, frames_t_dedm3 = grid_dedisperse_frame(frame3, 0, 1000.)
+    #frame2 = DataFrame(fname, 1684., 1., 16. / 128., 0.001)
+    #frame2.add_pulse(15., 0.3, 0.003, dm=500.)
+    #frame2.add_pulse(20., 0.275, 0.003, dm=500.)
+    #frame2.add_pulse(35., 0.25, 0.003, dm=500.)
+    #frame2.add_pulse(40., 0.225, 0.003, dm=500.)
+    #frame2.add_pulse(55., 0.2, 0.003, dm=500.)
+    #frame2.add_pulse(60., 0.175, 0.003, dm=500.)
+    #frame2.add_pulse(75., 0.15, 0.003, dm=500.)
+    #frame2.add_pulse(80., 0.125, 0.003, dm=500.)
+    #frame3 = DataFrame(fname, 1684., 1., 16. / 128., 0.001)
+    #frame3.add_pulse(15., 0.3, 0.003, dm=500.)
+    #frame3.add_pulse(20., 0.275, 0.003, dm=500.)
+    #frame3.add_pulse(39., 0.25, 0.003, dm=500.)
+    #frame3.add_pulse(40., 0.225, 0.003, dm=500.)
+    #frame3.add_pulse(51., 0.2, 0.003, dm=500.)
+    #frame3.add_pulse(65., 0.175, 0.003, dm=500.)
+    #frame3.add_pulse(75., 0.15, 0.003, dm=500.)
+    #frame3.add_pulse(87., 0.125, 0.003, dm=500.)
+    dm_grid1, frames_t_dedm1 = frame1.grid_dedisperse(0, 1000.)
+    #dm_grid2, frames_t_dedm2 = frame2.grid_dedisperse(0, 1000.)
+    #dm_grid3, frames_t_dedm3 = frame3.grid_dedisperse(0, 1000.)
     objects1 = Objects(frames_t_dedm1, dm_grid1, frame1.t)
-    objects2 = Objects(frames_t_dedm2, dm_grid2, frame2.t)
-    objects3 = Objects(frames_t_dedm3, dm_grid3, frame3.t)
-    result = find_close_many([objects1, objects2, objects3], dt=1., dm=150.)
+    #objects2 = Objects(frames_t_dedm2, dm_grid2, frame2.t)
+    #objects3 = Objects(frames_t_dedm3, dm_grid3, frame3.t)
+    #result = find_close_many([objects1, objects2, objects3], dt=1., dm=150.)
