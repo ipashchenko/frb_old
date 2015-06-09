@@ -3,7 +3,6 @@ from scipy.ndimage.measurements import maximum_position, label, find_objects
 from scipy.ndimage.morphology import generate_binary_structure
 from frames import DataFrame
 from search_utils import grid_dedisperse_frame
-from itertools import combinations
 
 
 def n_objects(image, threshold):
@@ -190,100 +189,17 @@ class TDMImageObjects(ImageObjects):
                                                    self.d_x > dt)]
 
 
-# FIXME: Currently it saves only one of two close candidates. Should save 2.
-# TODO: Create abstract function for case of 2 arrays.
-def find_close_2(obj1, obj2, dt=0.1, dm=200):
-    """
-    Function that finds close objects in (t, DM)-space for 2 ``Objects``
-    instances.
-
-    :param dt:
-        Threshold for time difference to consider objects close.
-    :param dm:
-        Threshold for DM difference to consider objects close.
-    :return:
-    """
-    successful_candidates = list()
-    for candidate_tdm in obj1.tdm:
-        diff = abs(obj2.tdm - candidate_tdm)
-        indxs = np.logical_and(diff[:, 0] < dt, diff[:, 1] < dm)
-        if indxs.any():
-            successful_candidates.append(obj2.tdm[indxs])
-
-    return np.vstack(successful_candidates)
-
-
-def find_close_many(objects, dt=0.1, dm=200):
-    """
-    Function that finds close objects in (t, DM)-space.
-
-    :param dt:
-        Threshold for time difference to consider objects close.
-    :param dm:
-        Threshold for DM difference to consider objects close.
-    :return:
-    """
-    # Remove empty objects (with no candidates)
-    for object in objects:
-        if not object:
-            objects.remove(object)
-    successful_candidates = list()
-    for pair in combinations(objects, 2):
-        # Reduce the length of for-loop in ``find_close_2``
-        if len(pair[0]) > len(pair[1]):
-            pair = pair[::-1]
-        successful_candidates.append(find_close_2(pair[0], pair[1], dt=dt,
-                                                  dm=dm))
-    return unique_rows(np.vstack(successful_candidates))
-
-
-def unique_rows(a):
-    """
-    Find unique rows in 2D numpy array.
-    see Stackexchange.
-    """
-    order = np.lexsort(a.T)
-    a = a[order]
-    diff = np.diff(a, axis=0)
-    ui = np.ones(len(a), 'bool')
-    ui[1:] = (diff != 0).any(axis=1)
-    return a[ui]
-
-
 if __name__ == '__main__':
     fname = '/home/ilya/code/frb/data/90_sec_wb_raes08a_128ch'
     # fname = '/home/ilya/code/frb/data/BIG.txt'
-    frame1 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
-    frame1.add_pulse(10., 0.3, 0.003, dm=500.)
-    frame1.add_pulse(20., 0.275, 0.003, dm=500.)
-    frame1.add_pulse(30., 0.25, 0.003, dm=500.)
-    frame1.add_pulse(40., 0.225, 0.003, dm=500.)
-    frame1.add_pulse(50., 0.2, 0.003, dm=500.)
-    frame1.add_pulse(60., 0.175, 0.003, dm=500.)
-    frame1.add_pulse(70., 0.15, 0.003, dm=500.)
-    frame1.add_pulse(80., 0.125, 0.003, dm=500.)
-    #frame2 = DataFrame(fname, 1684., 1., 16. / 128., 0.001)
-    #frame2.add_pulse(15., 0.3, 0.003, dm=500.)
-    #frame2.add_pulse(20., 0.275, 0.003, dm=500.)
-    #frame2.add_pulse(35., 0.25, 0.003, dm=500.)
-    #frame2.add_pulse(40., 0.225, 0.003, dm=500.)
-    #frame2.add_pulse(55., 0.2, 0.003, dm=500.)
-    #frame2.add_pulse(60., 0.175, 0.003, dm=500.)
-    #frame2.add_pulse(75., 0.15, 0.003, dm=500.)
-    #frame2.add_pulse(80., 0.125, 0.003, dm=500.)
-    #frame3 = DataFrame(fname, 1684., 1., 16. / 128., 0.001)
-    #frame3.add_pulse(15., 0.3, 0.003, dm=500.)
-    #frame3.add_pulse(20., 0.275, 0.003, dm=500.)
-    #frame3.add_pulse(39., 0.25, 0.003, dm=500.)
-    #frame3.add_pulse(40., 0.225, 0.003, dm=500.)
-    #frame3.add_pulse(51., 0.2, 0.003, dm=500.)
-    #frame3.add_pulse(65., 0.175, 0.003, dm=500.)
-    #frame3.add_pulse(75., 0.15, 0.003, dm=500.)
-    #frame3.add_pulse(87., 0.125, 0.003, dm=500.)
-    dm_grid1, frames_t_dedm1 = frame1.grid_dedisperse(0, 1000.)
-    #dm_grid2, frames_t_dedm2 = frame2.grid_dedisperse(0, 1000.)
-    #dm_grid3, frames_t_dedm3 = frame3.grid_dedisperse(0, 1000.)
-    objects1 = Objects(frames_t_dedm1, dm_grid1, frame1.t)
-    #objects2 = Objects(frames_t_dedm2, dm_grid2, frame2.t)
-    #objects3 = Objects(frames_t_dedm3, dm_grid3, frame3.t)
-    #result = find_close_many([objects1, objects2, objects3], dt=1., dm=150.)
+    frame = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
+    frame.add_pulse(10., 0.3, 0.003, dm=500.)
+    frame.add_pulse(20., 0.275, 0.003, dm=500.)
+    frame.add_pulse(30., 0.25, 0.003, dm=500.)
+    frame.add_pulse(40., 0.225, 0.003, dm=500.)
+    frame.add_pulse(50., 0.2, 0.003, dm=500.)
+    frame.add_pulse(60., 0.175, 0.003, dm=500.)
+    frame.add_pulse(70., 0.15, 0.003, dm=500.)
+    frame.add_pulse(80., 0.125, 0.003, dm=500.)
+    dm_grid, frames_t_dedm = frame.grid_dedisperse(0, 1000.)
+    objects = TDMImageObjects(frames_t_dedm, dm_grid, frame.t)
