@@ -1,6 +1,5 @@
 import numpy as np
-from scipy.ndimage.measurements import maximum_position, label, find_objects,\
-    mean, maximum, minimum
+from scipy.ndimage.measurements import maximum_position, label, find_objects
 from scipy.ndimage.morphology import generate_binary_structure
 from frames import DataFrame
 from search_utils import grid_dedisperse_frame
@@ -27,14 +26,17 @@ def n_objects(image, threshold):
     return num_features
 
 
-class ObjectExplorer(object):
-    def __init__(self, objects):
-        self.objects = objects
-
-
+# TODO: Create abstract base class for arbitrary image and subclass it.
 class Objects(object):
     """
     Class that describes collections of labeled regions in image.
+
+    :param image:
+        Numpy 2D array with image values.
+    :param dm_grid:
+        Array-like of y-coordinates.
+    :param t_grid:
+        Array-like of x-coordinates.
     """
     def __init__(self, image, dm_grid, t_grid, perc=99.95):
         self.t_grid = t_grid
@@ -62,12 +64,6 @@ class Objects(object):
                                                   (2,))])
 
         labels = np.arange(num_features) + 1
-        # FIXME: find ``max_pos`` only for successful candidates!!!
-        max_pos = maximum_position(image, labels=labeled_array,
-                                        index=labels)
-        # _mean = mean(image, labeled_array, index=labels)
-        # _max = maximum(image, labeled_array, index=labels)
-        # _min = minimum(image, labeled_array, index=labels)
         dx = [int(obj[1].stop - obj[1].start) for obj in objects]
         dy = [int(obj[0].stop - obj[0].start) for obj in objects]
 
@@ -75,12 +71,8 @@ class Objects(object):
         _objects['label'] = labels
         _objects['dx'] = dx
         _objects['dy'] = dy
-        # _objects['min'] = _min
-        # _objects['mean'] = _mean
-        # _objects['max'] = _max
-        # _objects['max_pos'] = max_pos
         self.objects = _objects
-        self.classify()
+        self._classify()
         self._sort()
         self.max_pos = self.find_positions(image, labeled_array)
 
@@ -88,10 +80,9 @@ class Objects(object):
         return maximum_position(image, labels=labeled_array, index=self.label)
 
     def _sort(self):
-        self.objects = self.objects[np.lexsort((self.objects['dx'],
-                                                self.objects['dy']))[::-1]]
+        self.objects = self.objects[np.lexsort((self.dx, self.dy))[::-1]]
 
-    def classify(self, d_dm=150, dt=0.005):
+    def _classify(self, d_dm=150, dt=0.005):
         """
         Method that select only candidates which have dimensions > ``d_dm``
         [cm*3/pc] and > ``dt`` [s]
@@ -102,6 +93,9 @@ class Objects(object):
         self.objects = self.objects[np.logical_and(self.d_dm > d_dm,
                                                    self.d_t > dt)]
         self._sort()
+
+    def save_txt(self, fname):
+        np.savetxt(fname, self.objects)
 
     def __add__(self, other):
         values = other.objects.copy()
@@ -121,7 +115,7 @@ class Objects(object):
 
     @property
     def d_t(self):
-        return self.objects['dx']
+        return self.objects['dx'] * self.t_step
 
     @property
     def d_dm(self):
@@ -139,18 +133,6 @@ class Objects(object):
     def max_pos(self, max_pos):
         self.objects['max_pos'] = max_pos
 
-   # @property
-   # def max(self):
-   #     return self.objects['max']
-
-   # @property
-   # def min(self):
-   #     return self.objects['min']
-
-   # @property
-   # def mean(self):
-   #     return self.objects['mean']
-
     @property
     def dm(self):
         return self.dm_grid[self.max_pos[:, 0]]
@@ -167,6 +149,8 @@ class Objects(object):
         return len(self.objects)
 
 
+# FIXME: Currently it saves only one of two close candidates. Should save 2.
+# TODO: Abstract for case of 2 arrays.
 def find_close_2(obj1, obj2, dt=0.1, dm=200):
     """
     Function that finds close objects in (t, DM)-space for 2 ``Objects``
@@ -204,6 +188,9 @@ def find_close_many(objects, dt=0.1, dm=200):
             objects.remove(object)
     successful_candidates = list()
     for pair in combinations(objects, 2):
+        # Reduce the length of for-loop in ``find_close_2``
+        if len(pair[0]) > len(pair[1]):
+            pair = pair[::-1]
         successful_candidates.append(find_close_2(pair[0], pair[1], dt=dt,
                                                   dm=dm))
     return unique_rows(np.vstack(successful_candidates))
@@ -212,6 +199,7 @@ def find_close_many(objects, dt=0.1, dm=200):
 def unique_rows(a):
     """
     Find unique rows in 2D numpy array.
+    see Stackexchange.
     """
     order = np.lexsort(a.T)
     a = a[order]
