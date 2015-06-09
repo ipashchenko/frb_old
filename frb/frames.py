@@ -1,5 +1,6 @@
 import numpy as np
-from utils import vint, vround, roll2d
+import pyfits as pf
+from utils import vint, vround, delta_dm_max
 
 try:
     import george
@@ -12,11 +13,52 @@ except ImportError:
     plt = None
 
 
-# TODO: add masking edges
+def create_frame_from_txt(fname, nu_0, t_0, dnu, dt, n_nu_discard=0):
+    """
+    Function that creates ``Frame`` instance from txt-file where each row
+    represent dynamical spectra and number of row = number of times at which
+    spectra are measured.
+    :param fname:
+        Txt-file name.
+    :param nu_0:
+        Frequency of highest frequency channel [MHz].
+    :param t_0:
+        Time of first measurement.
+    :param dnu:
+    :param dt:
+    :param n_nu_discard:
+    :return:
+    """
+    # Assert even number of channels to discard
+    assert not int(n_nu_discard) % 2
+
+    values = np.loadtxt(fname, unpack=True)
+    n_nu, n_t = np.shape(values)
+    frame = Frame(n_nu - n_nu_discard, n_t, nu_0 - n_nu_discard * dnu / 2.,
+                  t_0, dnu, dt)
+    if n_nu_discard:
+        frame.values += values[n_nu_discard / 2 : -n_nu_discard / 2, :]
+    else:
+        frame.values += values
+    return frame
+
+
+def create_frame_from_fits(fname, n_nu_discard=0):
+    """
+    Function that creates ``Frame`` instance from FITS-file.
+    :param fname:
+    :param n_nu_discard:
+    :return:
+    """
+    # Assert even number of channels to discard
+    assert not int(n_nu_discard) % 2
+    hdulist = pf.open(fname)
+
+
 class Frame(object):
     """
     Basic class that represents a set of regulary spaced frequency channels with
-    regulary measured values.
+    regulary measured values (time sequence of autospectra).
 
     :param n_nu:
         Number of spectral channels.
@@ -60,7 +102,7 @@ class Frame(object):
         """
         raise NotImplementedError
 
-    def de_disperse(self, dm, replace=True):
+    def de_disperse(self, dm, replace=False):
         """
         De-disperse frame using specified value of DM.
 
@@ -211,8 +253,61 @@ class Frame(object):
                                      gp2.sample(self.nu) ** 2.)
                 self.values[:, i] += gp_samples
 
+    def grid_dedisperse(self, dm_min, dm_max, dm_delta=None, savefig=None):
+        """
+        Method that de-disperse ``Frame`` instance with range values of
+        dispersion measures and average them in frequency to obtain image in
+        (t, DM)-plane.
+
+        :param dm_min:
+            Value of minimal DM to de-disperse [cm^3/pc].
+        :param dm_max:
+            Value of maximum DM to de-disperse [cm^3/pc].
+        :param dm_delta: (optional)
+            Delta of DM for grid [cm^3/pc]. If ``None`` then choose one that
+            corresponds to time shift equals to time resolution for frequency
+            bandwidth. Actually used value is 5 times larger.
+            (default: ``None``)
+        :param savefig: (optional)
+            File to save picture.
+
+        """
+        if dm_delta is None:
+            # Find step for DM grid
+            # Seems that ``5`` is good choice (1/200 of DM range)
+            dm_delta = 5 * delta_dm_max(self.nu_0,
+                                        self.nu_0 - self.n_nu * self.dnu,
+                                        self.dt)
+
+        # Create grid of searched DM-values
+        dm_grid = np.arange(dm_min, dm_max, dm_delta)
+        # Accumulator of de-dispersed frequency averaged frames
+        frames = list()
+        for dm in dm_grid:
+            frame = self.de_disperse(dm=dm, replace=False)
+            frame = self.average_in_freq(frame)
+            frames.append(frame)
+
+        frames = np.array(frames)
+
+        # Plot results
+        if savefig is not None:
+            plt.imshow(frames, interpolation='none', aspect='auto')
+            plt.xlabel('De-dispersed by DM freq.averaged dyn.spectr')
+            plt.ylabel('DM correction')
+            plt.yticks(np.linspace(0, len(dm_grid) - 10, 5, dtype=int),
+                       vint(dm_grid[np.linspace(0, len(dm_grid) - 10, 5,
+                                                dtype=int)]))
+            plt.colorbar()
+            plt.savefig(savefig, bbox_inches='tight')
+            plt.show()
+            plt.close()
+
+        return dm_grid, frames
+
 
 # TODO: should i use just one class ``Frame`` but different io-methods?
+# TODO: Create subclass for FITS input.
 class DataFrame(Frame):
     """
     Class that represents the frame of real data.
@@ -223,6 +318,9 @@ class DataFrame(Frame):
 
     """
     def __init__(self, fname, nu_0, t_0, dnu, dt, n_nu_discard=0):
+        # Assert even number of channels to discard
+        assert not int(n_nu_discard) % 2
+
         values = np.loadtxt(fname, unpack=True)
         n_nu, n_t = np.shape(values)
         super(DataFrame, self).__init__(n_nu - n_nu_discard, n_t,
