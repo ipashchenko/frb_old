@@ -26,7 +26,14 @@ def n_objects(image, threshold):
     return num_features
 
 
-class ImageObjects(object):
+# TODO: Sometimes we need more features for classification. Currently it uses
+# only ``dx``, ``dy`` for that. Should be an option to include others (``max``,
+# ``mean``, ...) but in that case calculations of them for all labelled regions
+# will take a lot of time (there are thousands of objects in my use case).
+# Current implementation allows this option by means of ``_classify`` method. It
+# should calculate necessary features for objects in ``objects`` array using
+# original image and labeled array passed as arguments.
+class BasicImageObjects(object):
     """
     Abstract class for finding and handling image objects.
 
@@ -39,7 +46,7 @@ class ImageObjects(object):
     def __init__(self, image, perc):
         threshold = np.percentile(image.ravel(), perc)
         a = image.copy()
-        # Keep only tail of distribution with signal (and correlated noise:)
+        # Keep only tail of image values distribution with signal
         a[a < threshold] = 0
         s = generate_binary_structure(2, 2)
         # Label image
@@ -62,19 +69,26 @@ class ImageObjects(object):
         _objects['dx'] = dx
         _objects['dy'] = dy
         self.objects = _objects
-        self._classify()
+        self._classify(image, labeled_array)
         self._sort()
+        # Fetch positions of objects only on classified ones
         self.max_pos = self._find_positions(image, labeled_array)
 
     def _find_positions(self, image, labeled_array):
         return maximum_position(image, labels=labeled_array, index=self.label)
 
     def _sort(self):
+        """
+        Method that sorts image objects somehow.
+        """
         raise NotImplementedError
 
-    def _classify(self):
+    def _classify(self, *args, **kwargs):
         """
-        Method that select only image objects with desirable properties.
+        Method that selects only image objects with desirable properties.
+        You can use any features of ``objects`` attribute to do classification.
+        Or you can fetch any other features (like ``max`` or ``variance``)
+        using passed as arguments to method image and labeled_array.
         """
         raise NotImplementedError
 
@@ -86,7 +100,7 @@ class ImageObjects(object):
 
     def save_txt(self, fname):
         """
-        Save found object to text file.
+        Save image object's parameters to text file.
         """
         np.savetxt(fname, self.objects)
 
@@ -114,90 +128,19 @@ class ImageObjects(object):
         return len(self.objects)
 
 
-class Objects(object):
+class ImageObjects(BasicImageObjects):
     """
-    Class that describes collections of labeled regions in image.
+    Class that handles image objects for images with specified x,y -
+    coordinates.
 
-    :param image:
-        Numpy 2D array with image values.
-    :param dm_grid:
-        Array-like of y-coordinates.
-    :param t_grid:
-        Array-like of x-coordinates.
-
-    :notes:
-        Instances of this class doesn't need original image so it could be
-        deleted right after instantiation.
     """
-    # TODO: Add parameters of classification - should it be function that will
-    # be ``map``-ed to sequence of candidates or ``filter`` them?
-    # TODO: Abstract class shouldn't use ``dm_grid`` & ``t_grid``.
-    def __init__(self, image, dm_grid, t_grid, perc=99.95):
-        self.t_grid = t_grid
-        self.dm_grid = dm_grid
-        self.dm_step = dm_grid[1] - dm_grid[0]
-        self.t_step = t_grid[1] - t_grid[0]
-        threshold = np.percentile(image.ravel(), perc)
-        a = image.copy()
-        # Keep only tail of distribution with signal (and correlated noise:)
-        a[a < threshold] = 0
-        s = generate_binary_structure(2, 2)
-        # Label image
-        labeled_array, num_features = label(a, structure=s)
-        # Find objects
-        objects = find_objects(labeled_array)
-        # Container of object's properties
-        _objects = np.empty(num_features, dtype=[('label', 'int'),
-                                                 ('dx', '<f8'),
-                                                 ('dy', '<f8'),
-                                                 # ('min', '<f8'),
-                                                 # ('mean', '<f8'),
-                                                 # ('max', '<f8'),
-                                                 ('max_pos', 'int',
-                                                  (2,))])
+    def __init__(self, image, x_grid, y_grid, perc):
+        super(ImageObjects, self).__init__(image, perc)
+        self.x_grid = x_grid
+        self.y_grid = y_grid
+        self.x_step = x_grid[1] - x_grid[0]
+        self.y_step = y_grid[1] - y_grid[0]
 
-        labels = np.arange(num_features) + 1
-        dx = [int(obj[1].stop - obj[1].start) for obj in objects]
-        dy = [int(obj[0].stop - obj[0].start) for obj in objects]
-
-        # Filling objects structured array
-        _objects['label'] = labels
-        _objects['dx'] = dx
-        _objects['dy'] = dy
-        self.objects = _objects
-        self._classify()
-        self._sort()
-        self.max_pos = self._find_positions(image, labeled_array)
-
-    def _find_positions(self, image, labeled_array):
-        return maximum_position(image, labels=labeled_array, index=self.label)
-
-    # TODO: Sort using square of size (dx * dy)
-    def _sort(self):
-        self.objects = self.objects[np.lexsort((self.dx, self.dy))[::-1]]
-
-    def _classify(self, d_dm=150, dt=0.005):
-        """
-        Method that select only candidates which have dimensions > ``d_dm``
-        [cm*3/pc] and > ``dt`` [s]
-        :param d_dm:
-        :param dt:
-        :return:
-        """
-        self.objects = self.objects[np.logical_and(self.d_dm > d_dm,
-                                                   self.d_t > dt)]
-        self._sort()
-
-    def plot(self, image, labels=None):
-        """
-        Overplot image with found labelled objects,
-        """
-        pass
-
-    def save_txt(self, fname):
-        np.savetxt(fname, self.objects)
-
-    # TODO: I need it only in subclasses of ABC (when ``t_grid`` is available).
     def __add__(self, other):
         values = other.objects.copy()
         # Keep each own's numbering to show it later.
@@ -207,52 +150,44 @@ class Objects(object):
         return self
 
     @property
-    def dx(self):
-        return self.objects['dx']
+    def d_x(self):
+        return self.objects['dx'] * self.x_step
 
     @property
-    def dy(self):
-        return self.objects['dy']
-
-    # TODO: Should be available if grids are given
-    @property
-    def d_t(self):
-        return self.objects['dx'] * self.t_step
-
-    # TODO: Should be available if grids are given
-    @property
-    def d_dm(self):
-        return self.objects['dy'] * self.dm_step
+    def d_y(self):
+        return self.objects['dy'] * self.y_step
 
     @property
-    def label(self):
-        return self.objects['label']
+    def y(self):
+        return self.y_grid[self.max_pos[:, 0]]
 
     @property
-    def max_pos(self):
-        return self.objects['max_pos']
+    def x(self):
+        return self.x_grid[self.max_pos[:, 1]]
 
-    @max_pos.setter
-    def max_pos(self, max_pos):
-        self.objects['max_pos'] = max_pos
-
-    # TODO: Should be available if grids are given
     @property
-    def dm(self):
-        return self.dm_grid[self.max_pos[:, 0]]
+    def xy(self):
+        return np.vstack((self.x, self.y)).T
 
-    # TODO: Should be available if grids are given
-    @property
-    def t(self):
-        return self.t_grid[self.max_pos[:, 1]]
 
-    # TODO: Should be available if grids are given
-    @property
-    def tdm(self):
-        return np.vstack((self.t, self.dm)).T
+class TDMImageObjects(ImageObjects):
 
-    def __len__(self):
-        return len(self.objects)
+    def _sort(self):
+        self.objects = self.objects[np.lexsort((self.dx, self.dy))[::-1]]
+
+    def _classify(self, d_dm=150, dt=0.005):
+        """
+        Method that select only candidates which have dimensions > ``d_dm``
+        [cm*3/pc] and > ``dt`` [s]
+        :param d_dm:
+            Value of DM spanned by object to count it as candidate for pulse
+            [cm^3/pc].
+        :param dt:
+            Value of t spanned by object to count it as candidate for pulse
+            [s].
+        """
+        self.objects = self.objects[np.logical_and(self.d_y > d_dm,
+                                                   self.d_x > dt)]
 
 
 # FIXME: Currently it saves only one of two close candidates. Should save 2.
