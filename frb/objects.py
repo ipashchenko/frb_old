@@ -1,45 +1,26 @@
 import numpy as np
 from scipy.ndimage.measurements import maximum_position, label, find_objects
 from scipy.ndimage.morphology import generate_binary_structure
-from frames import DataFrame
-from search_utils import grid_dedisperse_frame
 
 
-def n_objects(image, threshold):
-    """
-    Find number of objects in image using specified threshold value.
-    :param image:
-        2D-Numpy array of image
-    :param threshold:
-        Threshold value. Image regions with values less then ``threshold`` will
-        be zero'd.
-    :return:
-        Number of objects found.
-
-    """
-    a = image.copy()
-    a[a < threshold] = 0
-    s = generate_binary_structure(2, 2)
-    # Label image
-    labeled_array, num_features = label(a, structure=s)
-    return num_features
-
-
-# TODO: Sometimes we need more features for classification. Currently it uses
-# only ``dx``, ``dy`` for that. Should be an option to include others (``max``,
-# ``mean``, ...) but in that case calculations of them for all labelled regions
-# will take a lot of time (there are thousands of objects in my use case).
-# Current implementation allows this option by means of ``_classify`` method. It
-# should calculate necessary features for objects in ``objects`` array using
-# original image and labeled array passed as arguments.
 class BasicImageObjects(object):
     """
-    Abstract class for finding and handling image objects.
+    Abstract class for handling image objects.
 
     :param image:
         2D numpy array with image.
     :param perc:
         Percent of image values to blank while labeling image with objects.
+
+    :notes:
+        Sometimes we need more features for classification. Currently it uses
+        only ``dx``, ``dy`` for that. Should be an option to include others
+        (``max``, ``mean``, ...) but in that case calculations of them for all
+        labelled regions will take a lot of time (there are thousands of objects
+        in my use case). Current implementation allows this option by means of
+        ``_classify`` method. It should calculate necessary features for objects
+        in ``objects`` array using original image and labeled array passed as
+        arguments.
 
     """
     def __init__(self, image, perc):
@@ -85,9 +66,9 @@ class BasicImageObjects(object):
     def _classify(self, *args, **kwargs):
         """
         Method that selects only image objects with desirable properties.
-        You can use any features of ``objects`` attribute to do classification.
+        You can use any features of ``objects`` attribute for classification.
         Or you can fetch any other features (like ``max`` or ``variance``)
-        using passed as arguments to method image and labeled_array.
+        using passed as arguments to method ``image`` and ``labeled_array``.
         """
         raise NotImplementedError
 
@@ -99,7 +80,7 @@ class BasicImageObjects(object):
 
     def save_txt(self, fname):
         """
-        Save image object's parameters to text file.
+        Save image objects parameters to text file.
         """
         np.savetxt(fname, self.objects)
 
@@ -144,11 +125,17 @@ class ImageObjects(BasicImageObjects):
     Class that handles image objects for images with specified x,y -
     coordinates.
 
+    :param x_grid:
+        Array-like of values of x-coordinates.
+
+    :param y_grid:
+        Array-like of values of y-coordinates.
+
     """
     def __init__(self, image, x_grid, y_grid, perc):
         super(ImageObjects, self).__init__(image, perc)
-        self.x_grid = x_grid
-        self.y_grid = y_grid
+        self.x_grid = np.asarray(x_grid)
+        self.y_grid = np.asarray(y_grid)
         self.x_step = x_grid[1] - x_grid[0]
         self.y_step = y_grid[1] - y_grid[0]
 
@@ -200,36 +187,63 @@ class ImageObjects(BasicImageObjects):
 
 
 class TDMImageObjects(ImageObjects):
+    """
+    Class that handles search of FRBs by analyzing image objects in
+    (t, DM)-plane.
+
+    :param d_dm: (optional)
+        Value of DM spanned by object to count it as candidate for pulse
+        [cm^3/pc]. (default: ``150.``)
+    :param dt: (optional)
+        Value of t spanned by object to count it as candidate for pulse
+        [s]. (default: ``0.005``)
+
+    """
+    def __init__(self, image, x_grid, y_grid, perc, d_dm=150., dt=0.005):
+        super(TDMImageObjects, self).__init__(image, x_grid, y_grid, perc)
+        self._d_dm = d_dm
+        self._dt = dt
 
     def _sort(self):
+        """
+        Method that sorts objects by widths (first - in x-direction, second - in
+        y-direction.
+        """
         self.objects = self.objects[np.lexsort((self.dx, self.dy))[::-1]]
 
-    def _classify(self, d_dm=150, dt=0.005):
+    def _classify(self):
         """
-        Method that select only candidates which have dimensions > ``d_dm``
-        [cm*3/pc] and > ``dt`` [s]
-        :param d_dm:
-            Value of DM spanned by object to count it as candidate for pulse
-            [cm^3/pc].
-        :param dt:
-            Value of t spanned by object to count it as candidate for pulse
-            [s].
+        Method that selects only candidates which have dimensions >
+        ``self._d_dm`` [cm*3/pc] and > ``self._dt`` [s]
         """
-        self.objects = self.objects[np.logical_and(self.d_y > d_dm,
-                                                   self.d_x > dt)]
+        self.objects = self.objects[np.logical_and(self.d_y > self._d_dm,
+                                                   self.d_x > self._dt)]
 
 
 if __name__ == '__main__':
+    from frames import DataFrame
     fname = '/home/ilya/code/frb/data/90_sec_wb_raes08a_128ch'
-    # fname = '/home/ilya/code/frb/data/BIG.txt'
-    frame = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
-    frame.add_pulse(10., 0.3, 0.003, dm=500.)
-    frame.add_pulse(20., 0.275, 0.003, dm=500.)
-    frame.add_pulse(30., 0.25, 0.003, dm=500.)
-    frame.add_pulse(40., 0.225, 0.003, dm=500.)
-    frame.add_pulse(50., 0.2, 0.003, dm=500.)
-    frame.add_pulse(60., 0.175, 0.003, dm=500.)
-    frame.add_pulse(70., 0.15, 0.003, dm=500.)
-    frame.add_pulse(80., 0.125, 0.003, dm=500.)
-    dm_grid, frames_t_dedm = frame.grid_dedisperse(0, 1000.)
-    objects = TDMImageObjects(frames_t_dedm, dm_grid, frame.t)
+    frame1 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
+    frame1.add_pulse(10., 0.3, 0.003, dm=500.)
+    frame1.add_pulse(20., 0.275, 0.003, dm=500.)
+    frame1.add_pulse(30., 0.25, 0.003, dm=500.)
+    frame1.add_pulse(40., 0.225, 0.003, dm=500.)
+    frame1.add_pulse(50., 0.2, 0.003, dm=500.)
+    frame1.add_pulse(60., 0.175, 0.003, dm=500.)
+    frame1.add_pulse(70., 0.15, 0.003, dm=500.)
+    frame1.add_pulse(80., 0.125, 0.003, dm=500.)
+    dm_grid, frames_t_dedm = frame1.grid_dedisperse(0, 1000.)
+    objects1 = TDMImageObjects(frames_t_dedm, dm_grid, frame1.t)
+    objects1.save_txt("saved_objects_1.txt")
+    frame2 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
+    frame2.add_pulse(10., 0.3, 0.003, dm=500.)
+    frame2.add_pulse(25., 0.275, 0.003, dm=500.)
+    frame2.add_pulse(30., 0.25, 0.003, dm=500.)
+    frame2.add_pulse(45., 0.225, 0.003, dm=500.)
+    frame2.add_pulse(50., 0.2, 0.003, dm=500.)
+    frame2.add_pulse(65., 0.175, 0.003, dm=500.)
+    frame2.add_pulse(70., 0.15, 0.003, dm=500.)
+    frame2.add_pulse(80., 0.125, 0.003, dm=500.)
+    dm_grid, frames_t_dedm = frame2.grid_dedisperse(0, 1000.)
+    objects2 = TDMImageObjects(frames_t_dedm, dm_grid, frame2.t)
+    objects2.save_txt("saved_objects_2.txt")
