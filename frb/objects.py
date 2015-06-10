@@ -105,18 +105,30 @@ class BasicImageObjects(object):
 
     @property
     def dx(self):
+        """
+        Shortcut for widths of objects in x direction in pixels.
+        """
         return self.objects['dx']
 
     @property
     def dy(self):
+        """
+        Shortcut for widths of objects in y direction in pixels.
+        """
         return self.objects['dy']
 
     @property
     def label(self):
+        """
+        Shortcut for objects labels.
+        """
         return self.objects['label']
 
     @property
     def max_pos(self):
+        """
+        Shortcut for positions of maximum for objects along both axis in pixels.
+        """
         return self.objects['max_pos']
 
     @max_pos.setter
@@ -150,22 +162,40 @@ class ImageObjects(BasicImageObjects):
 
     @property
     def d_x(self):
+        """
+        Shortcut for widths of objects in x direction in units of ``x_grid``.
+        """
         return self.objects['dx'] * self.x_step
 
     @property
     def d_y(self):
+        """
+        Shortcut for widths of objects in y direction in units of ``y_grid``.
+        """
         return self.objects['dy'] * self.y_step
 
     @property
     def y(self):
+        """
+        Shortcut for positions of maximum for objects along y axis in units of
+        ``y_grid``.
+        """
         return self.y_grid[self.max_pos[:, 0]]
 
     @property
     def x(self):
+        """
+        Shortcut for positions of maximum for objects along x axis in units of
+        ``x_grid``.
+        """
         return self.x_grid[self.max_pos[:, 1]]
 
     @property
     def xy(self):
+        """
+        Shortcut for positions of maximum for objects along both axis in units
+        of ``x_grid`` and ``y_grid``.
+        """
         return np.vstack((self.x, self.y)).T
 
 
