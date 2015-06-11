@@ -1,8 +1,7 @@
 import glob
 import pyfits as pf
 from frames import DataFrame
-from search_utils import grid_dedisperse_frame
-from objects import Objects
+from objects import TDMImageObjects
 
 
 # TODO: To compare pulse candidates from different antennas we need time of
@@ -28,7 +27,9 @@ def search_antenna(antenna, experiment, dm_min=0, dm_max=1000, path=None):
     :return:
     """
     if path:
-        path = path + ".FITS"
+        if not path.endswith('/'):
+            path += '/'
+        path = path + "*.FITS"
     fnames = glob.glob(path)
     antenna_fnames = list()
     # Accumulate file names with given antenna/experiment
@@ -44,9 +45,9 @@ def search_antenna(antenna, experiment, dm_min=0, dm_max=1000, path=None):
     for fname in antenna_fnames:
         pars = get_pars(fname)
         frame = DataFrame(fname, *pars)
-        dm_grid, dm_t_frame = grid_dedisperse_frame(frame, dm_min=dm_min,
+        dm_grid, dm_t_frame = frame.grid_dedisperse(dm_min=dm_min,
                                                     dm_max=dm_max)
-        new_candidates = Objects(dm_t_frame, dm_grid, frame.t)
+        new_candidates = TDMImageObjects(dm_t_frame, dm_grid, frame.t)
         if candidates is None:
             candidates = new_candidates
         else:
@@ -62,7 +63,9 @@ def get_pars(fname):
         FITS-file name.
     :return:
     """
-    pass
+    hdulist = pf.open(fname)
+    # We don't access ``data`` attribute - just fetch some header info.
+    header = hdulist[0].header
 
 
 def search_experiment_antennnas(experiment, antennas, d_t=1., d_dm=150.,
@@ -70,6 +73,9 @@ def search_experiment_antennnas(experiment, antennas, d_t=1., d_dm=150.,
     """
     Function that search in txt-files for given experiment name and antenna
     names and find close in (t, DM)-space pulse candidates.
+
+    :Note:
+        Times ``t`` in files must be for the same frequency
 
     :param experiment:
         Experiment name.

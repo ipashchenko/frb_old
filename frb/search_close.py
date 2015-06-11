@@ -61,4 +61,3 @@ def unique_rows(a):
     ui = np.ones(len(a), 'bool')
     ui[1:] = (diff != 0).any(axis=1)
     return a[ui]
-
