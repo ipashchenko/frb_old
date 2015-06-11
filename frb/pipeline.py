@@ -31,9 +31,9 @@ def search_antenna(antenna, experiment, dm_min, dm_max, d_t, d_dm,
     :return:
     """
     path = path or os.get_cwd()
-        if not path.endswith('/'):
-            path += '/'
-        path = path + "*.FITS"
+    if not path.endswith('/'):
+        path += '/'
+    path = path + "*.FITS"
     fnames = glob.glob(path)
     if not fnames:
         raise Exception("No FITS-files found in ", path)
@@ -104,7 +104,7 @@ def search_experiment_antennnas(experiment, antennas, d_t, d_dm, dm_min, dm_max,
     """
     for antenna in antennas:
         search_antenna(antenna, experiment, dm_min, dm_max, d_t, d_dm,
-                       dm_delta=dm_delta, path=path,)
+                       dm_delta=dm_delta, path=path, outpath=outpath)
 
 
 def compare_antennas_candidates(experiment, d_t, d_dm, antennas=None,
@@ -118,7 +118,7 @@ def compare_antennas_candidates(experiment, d_t, d_dm, antennas=None,
     :param d_t:
         Tolerance in time [s].
     :param d_dm:
-        Tolerance in dispersion measurr [cm^3/pc].
+        Tolerance in dispersion measure [cm^3/pc].
     :param antennas: (optional)
         Iterable of antenna names to consider. If None then use all available
         files for given experiment. (default: None)
@@ -127,7 +127,10 @@ def compare_antennas_candidates(experiment, d_t, d_dm, antennas=None,
     :param outpath: (optional)
         Path to place where keep results. If None then use cwd. (default: None)
     :return:
+        Text file with antennas (at least 2) and (t, DM)-coordinates of
+        confirmed candidates in outpath directory.
     """
+    pass
 
 
 
