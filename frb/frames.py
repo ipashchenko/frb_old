@@ -102,6 +102,7 @@ class Frame(object):
         """
         raise NotImplementedError
 
+    # FIXME: at small ``dt`` it uses too small DM-step for my laptop RAM:)
     def de_disperse(self, dm, replace=False):
         """
         De-disperse frame using specified value of DM.
