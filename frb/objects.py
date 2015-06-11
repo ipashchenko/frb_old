@@ -87,7 +87,7 @@ class BasicImageObjects(object):
         for a in features:
             if a not in dir(self.__class__):
                 raise AttributeError(a)
-        values = np.vstack([objects1.__getattribute__(a) for a in features]).T
+        values = np.vstack([self.__getattribute__(a) for a in features]).T
         np.savetxt(fname, values)
 
     @property
