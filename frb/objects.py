@@ -51,7 +51,7 @@ class BasicImageObjects(object):
         self.objects = _objects
         self._classify(image, labeled_array)
         self._sort()
-        # Fetch positions of objects only on classified ones
+        # Fetch positions of only successfuly classified objects
         self.max_pos = self._find_positions(image, labeled_array)
 
     def _find_positions(self, image, labeled_array):
@@ -78,11 +78,17 @@ class BasicImageObjects(object):
         """
         pass
 
-    def save_txt(self, fname):
+    def save_txt(self, fname, *features):
         """
         Save image objects parameters to text file.
         """
-        np.savetxt(fname, self.objects)
+        # Check that features are among attributes of class
+        # FIXME: it must be attribute (just field or property)
+        for a in features:
+            if a not in dir(self.__class__):
+                raise AttributeError(a)
+        values = np.vstack([objects1.__getattribute__(a) for a in features]).T
+        np.savetxt(fname, values)
 
     @property
     def dx(self):
@@ -133,11 +139,13 @@ class ImageObjects(BasicImageObjects):
 
     """
     def __init__(self, image, x_grid, y_grid, perc):
-        super(ImageObjects, self).__init__(image, perc)
+        # Need this attributes in ``_classify`` method of base class
+        # ``__init__``
         self.x_grid = np.asarray(x_grid)
         self.y_grid = np.asarray(y_grid)
         self.x_step = x_grid[1] - x_grid[0]
         self.y_step = y_grid[1] - y_grid[0]
+        super(ImageObjects, self).__init__(image, perc)
 
     def __add__(self, other):
         values = other.objects.copy()
@@ -200,9 +208,11 @@ class TDMImageObjects(ImageObjects):
 
     """
     def __init__(self, image, x_grid, y_grid, perc, d_dm=150., dt=0.005):
-        super(TDMImageObjects, self).__init__(image, x_grid, y_grid, perc)
+        # Need this attributes in ``_classify`` method of base class
+        # ``__init__``
         self._d_dm = d_dm
         self._dt = dt
+        super(TDMImageObjects, self).__init__(image, x_grid, y_grid, perc)
 
     def _sort(self):
         """
@@ -211,7 +221,7 @@ class TDMImageObjects(ImageObjects):
         """
         self.objects = self.objects[np.lexsort((self.dx, self.dy))[::-1]]
 
-    def _classify(self):
+    def _classify(self, *args, **kwargs):
         """
         Method that selects only candidates which have dimensions >
         ``self._d_dm`` [cm*3/pc] and > ``self._dt`` [s]
@@ -233,8 +243,8 @@ if __name__ == '__main__':
     frame1.add_pulse(70., 0.15, 0.003, dm=500.)
     frame1.add_pulse(80., 0.125, 0.003, dm=500.)
     dm_grid, frames_t_dedm = frame1.grid_dedisperse(0, 1000.)
-    objects1 = TDMImageObjects(frames_t_dedm, dm_grid, frame1.t)
-    objects1.save_txt("saved_objects_1.txt")
+    objects1 = TDMImageObjects(frames_t_dedm, frame1.t, dm_grid, 99.95)
+    objects1.save_txt("saved_objects_1.txt", "x", "y")
     frame2 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
     frame2.add_pulse(10., 0.3, 0.003, dm=500.)
     frame2.add_pulse(25., 0.275, 0.003, dm=500.)
@@ -245,5 +255,5 @@ if __name__ == '__main__':
     frame2.add_pulse(70., 0.15, 0.003, dm=500.)
     frame2.add_pulse(80., 0.125, 0.003, dm=500.)
     dm_grid, frames_t_dedm = frame2.grid_dedisperse(0, 1000.)
-    objects2 = TDMImageObjects(frames_t_dedm, dm_grid, frame2.t)
-    objects2.save_txt("saved_objects_2.txt")
+    objects2 = TDMImageObjects(frames_t_dedm, frame2.t, dm_grid, 99.95)
+    objects2.save_txt("saved_objects_2.txt", "x", "y")
