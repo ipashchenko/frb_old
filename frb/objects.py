@@ -228,32 +228,3 @@ class TDMImageObjects(ImageObjects):
         """
         self.objects = self.objects[np.logical_and(self.d_y > self._d_dm,
                                                    self.d_x > self._dt)]
-
-
-if __name__ == '__main__':
-    from frames import DataFrame
-    fname = '/home/ilya/code/frb/data/90_sec_wb_raes08a_128ch'
-    frame1 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
-    frame1.add_pulse(10., 0.3, 0.003, dm=500.)
-    frame1.add_pulse(20., 0.275, 0.003, dm=500.)
-    frame1.add_pulse(30., 0.25, 0.003, dm=500.)
-    frame1.add_pulse(40., 0.225, 0.003, dm=500.)
-    frame1.add_pulse(50., 0.2, 0.003, dm=500.)
-    frame1.add_pulse(60., 0.175, 0.003, dm=500.)
-    frame1.add_pulse(70., 0.15, 0.003, dm=500.)
-    frame1.add_pulse(80., 0.125, 0.003, dm=500.)
-    dm_grid, frames_t_dedm = frame1.grid_dedisperse(0, 1000.)
-    objects1 = TDMImageObjects(frames_t_dedm, frame1.t, dm_grid, 99.95)
-    objects1.save_txt("saved_objects_1.txt", "x", "y")
-    frame2 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
-    frame2.add_pulse(10., 0.3, 0.003, dm=500.)
-    frame2.add_pulse(25., 0.275, 0.003, dm=500.)
-    frame2.add_pulse(30., 0.25, 0.003, dm=500.)
-    frame2.add_pulse(45., 0.225, 0.003, dm=500.)
-    frame2.add_pulse(50., 0.2, 0.003, dm=500.)
-    frame2.add_pulse(65., 0.175, 0.003, dm=500.)
-    frame2.add_pulse(70., 0.15, 0.003, dm=500.)
-    frame2.add_pulse(80., 0.125, 0.003, dm=500.)
-    dm_grid, frames_t_dedm = frame2.grid_dedisperse(0, 1000.)
-    objects2 = TDMImageObjects(frames_t_dedm, frame2.t, dm_grid, 99.95)
-    objects2.save_txt("saved_objects_2.txt", "x", "y")
