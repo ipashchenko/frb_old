@@ -1,5 +1,7 @@
 import numpy as np
 import pyfits as pf
+import pickle_method
+from multiprocessing import Pool
 from utils import vint, vround, delta_dm_max
 
 try:
@@ -254,7 +256,8 @@ class Frame(object):
                                      gp2.sample(self.nu) ** 2.)
                 self.values[:, i] += gp_samples
 
-    def grid_dedisperse(self, dm_min, dm_max, dm_delta=None, savefig=None):
+    def grid_dedisperse(self, dm_min, dm_max, dm_delta=None, savefig=None,
+                        threads=1):
         """
         Method that de-disperse ``Frame`` instance with range values of
         dispersion measures and average them in frequency to obtain image in
@@ -271,8 +274,14 @@ class Frame(object):
             (default: ``None``)
         :param savefig: (optional)
             File to save picture.
+        :param threads: (optional)
+            Number of threads used for parallelization with ``mupltiprocessing``
+            module. If > 1 then it isn't used. (default: 1)
 
         """
+        pool = None
+        if threads > 1:
+            pool = Pool(threads)
         if dm_delta is None:
             # Find step for DM grid
             # Seems that ``5`` is good choice (1/200 of DM range)
@@ -284,10 +293,18 @@ class Frame(object):
         dm_grid = np.arange(dm_min, dm_max, dm_delta)
         # Accumulator of de-dispersed frequency averaged frames
         frames = list()
-        for dm in dm_grid:
-            frame = self.de_disperse(dm=dm, replace=False)
-            frame = self.average_in_freq(frame)
-            frames.append(frame)
+
+        if pool:
+            m = pool.map
+        else:
+            m = map
+
+        frames = list(m(self.de_disperse, [dm for dm in dm_grid]))
+
+        # for dm in dm_grid:
+        #     frame = self.de_disperse(dm=dm, replace=False)
+        #     frame = self.average_in_freq(frame)
+        #     frames.append(frame)
 
         frames = np.array(frames)
 
