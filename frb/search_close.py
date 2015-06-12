@@ -5,25 +5,22 @@ from itertools import combinations
 # TODO: Finding close candidates in (t, DM)-space is another logical task.
 # FIXME: Currently it saves only one of two close candidates. Should save 2.
 # TODO: Create abstract function for case of 2 arrays.
-def find_close_2(obj1, obj2, dt=0.1, dm=200):
+def find_close_2(arr1, arr2, ind_dict):
     """
-    Function that finds close objects in (t, DM)-space for 2 ``Objects``
-    instances.
-
-    :param dt:
-        Threshold for time difference to consider objects close.
-    :param dm:
-        Threshold for DM difference to consider objects close.
     :return:
     """
     successful_candidates = list()
-    for candidate_tdm in obj1.tdm:
-        diff = abs(obj2.tdm - candidate_tdm)
-        indxs = np.logical_and(diff[:, 0] < dt, diff[:, 1] < dm)
-        if indxs.any():
-            successful_candidates.append(obj2.tdm[indxs])
+    for el in arr1:
+        diff = arr2 - el
+        indxs = list()
+        for key, value in ind_dict.items():
+            indxs.append(abs(diff[:, key]) < value)
+        indxs = np.vstack(indxs).T
+        for i, indx in enumerate(indxs):
+            if np.alltrue(indx):
+                successful_candidates.append((el, arr2[i],))
 
-    return np.vstack(successful_candidates)
+    return successful_candidates
 
 
 def find_close_many(objects, dt=0.1, dm=200):
