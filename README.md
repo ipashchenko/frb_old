@@ -22,7 +22,7 @@ Parameters:
 
 - ``-nu_max`` - frequency of highest frequency channel [MHz].
 
-- ``-dnu`` - frequency with of single frequency channel [MHz].
+- ``-dnu`` - frequency width of single frequency channel [MHz].
 
 - ``-dt`` - time step (resolution) [s].
 
@@ -30,7 +30,7 @@ Parameters:
 
 - ``dm_max`` - maximum value of DM window to search [cm^3 / pc].
 
-- ``d_t`` - width of feature [s] in (t, DM)-space along DM-axis to treat it as
+- ``d_t`` - width of feature [s] in (t, DM)-space along t-axis to treat it as
     candidate. Default: 0.005
 
 - ``d_dm`` - width of feature [cm^3/pc] in (t, DM)-space along DM-axis to treat

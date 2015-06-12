@@ -1,4 +1,5 @@
 import glob
+import os
 import pyfits as pf
 from frames import DataFrame
 from objects import TDMImageObjects
@@ -8,7 +9,8 @@ from objects import TDMImageObjects
 # pulse at some fixed frequency. Or use the same set ups for each antenna (that
 # is not flexible enough) or bring all times to common frequency (that could be
 # not precise)
-def search_antenna(antenna, experiment, dm_min=0, dm_max=1000, path=None):
+def search_antenna(antenna, experiment, dm_min, dm_max, d_t, d_dm,
+                   dm_delta=None, path=None, outpath=None):
     """
     Function that search pulse candidates in FITS-files for given experiment
     name and antenna name.
@@ -17,20 +19,24 @@ def search_antenna(antenna, experiment, dm_min=0, dm_max=1000, path=None):
         Antenna name.
     :param experiment:
         Experiment name.
-    :param dm_min: (optional)
-        Minimum DM value to search [cm^3/pc]. (default: ``0``)
-    :param dm_max: (optional)
-        Maximum DM value to search [cm^3/pc]. (default: ``1000``)
+    :param dm_min:
+        Minimum DM value to search [cm^3/pc].
+    :param dm_max:
+        Maximum DM value to search [cm^3/pc].
     :param path: (optional)
         Path to files. If ``None`` then search current directory for FITS-files.
         (default: ``None``)
+    :param outpath: (optional)
+        Path to place where keep results. If None then use cwd. (default: None)
     :return:
     """
-    if path:
-        if not path.endswith('/'):
-            path += '/'
-        path = path + "*.FITS"
+    path = path or os.get_cwd()
+    if not path.endswith('/'):
+        path += '/'
+    path = path + "*.FITS"
     fnames = glob.glob(path)
+    if not fnames:
+        raise Exception("No FITS-files found in ", path)
     antenna_fnames = list()
     # Accumulate file names with given antenna/experiment
     for fname in fnames:
@@ -39,6 +45,9 @@ def search_antenna(antenna, experiment, dm_min=0, dm_max=1000, path=None):
         if (hdu.header['EXPER'] == experiment and
                     hdu.header['TELESC'] == antenna):
             antenna_fnames.append(fname)
+    if not antenna_fnames:
+        raise Exception("No FITS-files for ", antenna, " in ", experiment,
+                        " in ", path)
 
     candidates = None
     # For each FITS-file with given antenna name search candidates and save
@@ -46,14 +55,16 @@ def search_antenna(antenna, experiment, dm_min=0, dm_max=1000, path=None):
         pars = get_pars(fname)
         frame = DataFrame(fname, *pars)
         dm_grid, dm_t_frame = frame.grid_dedisperse(dm_min=dm_min,
-                                                    dm_max=dm_max)
-        new_candidates = TDMImageObjects(dm_t_frame, dm_grid, frame.t)
+                                                    dm_max=dm_max,
+                                                    dm_delta=dm_delta)
+        new_candidates = TDMImageObjects(dm_t_frame, frame.t, dm_grid, d_t,
+                                         d_dm)
         if candidates is None:
             candidates = new_candidates
         else:
             candidates += new_candidates
 
-    candidates.save_txt(experiment + '_' + antenna + '.txt')
+    candidates.save_txt(experiment + '_' + antenna + '.txt', 'x', 'y')
 
 
 def get_pars(fname):
@@ -68,8 +79,8 @@ def get_pars(fname):
     header = hdulist[0].header
 
 
-def search_experiment_antennnas(experiment, antennas, d_t=1., d_dm=150.,
-                                path=None):
+def search_experiment_antennnas(experiment, antennas, d_t, d_dm, dm_min, dm_max,
+                                dm_delta, path=None, outpath=None):
     """
     Function that search in txt-files for given experiment name and antenna
     names and find close in (t, DM)-space pulse candidates.
@@ -81,12 +92,72 @@ def search_experiment_antennnas(experiment, antennas, d_t=1., d_dm=150.,
         Experiment name.
     :param antenna:
         Iterable of antenna names.
-    :param d_t: (optional)
+    :param d_t:
         Difference in time of pulse at highest frequency.
     :param path: (optional)
         Path to files. If ``None`` then search current directory for FITS-files.
         (default: ``None``)
+    :param outpath: (optional)
+        Path to place where keep results. If None then use cwd. (default: None)
     :return:
         Creates txt-file with successful pulse candidates.
     """
+    for antenna in antennas:
+        search_antenna(antenna, experiment, dm_min, dm_max, d_t, d_dm,
+                       dm_delta=dm_delta, path=path, outpath=outpath)
+
+
+def compare_antennas_candidates(experiment, d_t, d_dm, antennas=None,
+                                path=None, outpath=None):
+    """
+    Function that uses text files with candidates from several antennas to find
+    coinciding.
+
+    :param experiment:
+        Experiment name.
+    :param d_t:
+        Tolerance in time [s].
+    :param d_dm:
+        Tolerance in dispersion measure [cm^3/pc].
+    :param antennas: (optional)
+        Iterable of antenna names to consider. If None then use all available
+        files for given experiment. (default: None)
+    :param path: (optional)
+        Path to text files. If None then search in cwd. (default: None)
+    :param outpath: (optional)
+        Path to place where keep results. If None then use cwd. (default: None)
+    :return:
+        Text file with antennas (at least 2) and (t, DM)-coordinates of
+        confirmed candidates in outpath directory.
+    """
     pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
