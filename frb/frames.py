@@ -256,6 +256,17 @@ class Frame(object):
                                      gp2.sample(self.nu) ** 2.)
                 self.values[:, i] += gp_samples
 
+    def step_dedisperse(self, dm):
+        """
+        Method that de-disperses frame using specified value of DM and frequency
+        averages the result.
+
+        :param dm:
+        :return:
+        """
+        frame = self.de_disperse(dm=dm, replace=False)
+        return self.average_in_freq(frame)
+
     def grid_dedisperse(self, dm_min, dm_max, dm_delta=None, savefig=None,
                         threads=1):
         """
@@ -291,21 +302,14 @@ class Frame(object):
 
         # Create grid of searched DM-values
         dm_grid = np.arange(dm_min, dm_max, dm_delta)
-        # Accumulator of de-dispersed frequency averaged frames
-        frames = list()
 
         if pool:
             m = pool.map
         else:
             m = map
 
-        frames = list(m(self.de_disperse, [dm for dm in dm_grid]))
-
-        # for dm in dm_grid:
-        #     frame = self.de_disperse(dm=dm, replace=False)
-        #     frame = self.average_in_freq(frame)
-        #     frames.append(frame)
-
+        # Accumulator of de-dispersed frequency averaged frames
+        frames = list(m(self.step_dedisperse, dm_grid.tolist()))
         frames = np.array(frames)
 
         # Plot results
