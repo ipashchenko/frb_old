@@ -46,6 +46,9 @@ Parameters:
 
 - ``save_result`` - file name to save (t, DM)-coordinates of found candidates.
     [s, cm^3/pc]
+    
+- ``threads`` - number of threads used for parallelization of grid
+    de-dispersion. Default is ``1`` (don't use parallelization).
 
 ## Notes
 
@@ -67,6 +70,9 @@ tunable parameters:
     overriding/extending ``TDMImageObjects._classify`` method that gets
     ``image`` and ``labelled array`` as first two positional arguments.
 
+Current implementation allows parallelization of grid de-dispersion step using
+``multiprocessing`` module. It gives only 25% speed up with small files. For
+big files bottleneck is io (swapping...)
 
 
 License
