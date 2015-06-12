@@ -57,6 +57,10 @@ if __name__ == '__main__':
     parser.add_argument('-save_result', action='store', nargs='?',
                         default=None, type=str, metavar='path to file',
                         help='- file to save (t, DM)-coordinates of candidates')
+    parser.add_argument('-threads', action='store', dest='threads', default=1,
+                        type=int, help='- number of threads used for '
+                                         'parallelization'
+                                         ' Default: 1')
 
     args = parser.parse_args()
 
@@ -66,7 +70,9 @@ if __name__ == '__main__':
     dm_max = args.dm_max
 
     dm_grid, frames_t_dedm = frame.grid_dedisperse(dm_min, dm_max,
-                                                   savefig=args.savefig_dedm)
+                                                   savefig=args.savefig_dedm,
+                                                   threads=args.threads)
     candidates = TDMImageObjects(frames_t_dedm, frame.t, dm_grid,
                                  perc=args.perc, d_dm=args.d_dm, dt=args.d_t)
-    candidates.save_txt(args.save_result, 'x', 'y')
+    if args.save_result:
+        candidates.save_txt(args.save_result, 'x', 'y')
