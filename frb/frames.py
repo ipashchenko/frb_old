@@ -264,8 +264,8 @@ class Frame(object):
         :param dm:
         :return:
         """
-        frame = self.de_disperse(dm=dm, replace=False)
-        return self.average_in_freq(frame)
+        values = self.de_disperse(dm=dm, replace=False)
+        return self.average_in_freq(values)
 
     def grid_dedisperse(self, dm_min, dm_max, dm_delta=None, savefig=None,
                         threads=1):
