@@ -64,7 +64,10 @@ def search_antenna(antenna, experiment, dm_min, dm_max, d_t, d_dm,
         else:
             candidates += new_candidates
 
-    candidates.save_txt(experiment + '_' + antenna + '.txt', 'x', 'y')
+    outpath = outpath or os.get_cwd()
+    if not outpath.endswith('/'):
+        outpath += '/'
+    candidates.save_txt(outpath + experiment + '_' + antenna + '.txt', 'x', 'y')
 
 
 def get_pars(fname):
