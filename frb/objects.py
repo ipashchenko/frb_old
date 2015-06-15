@@ -120,7 +120,10 @@ class BasicImageObjects(object):
 
     @max_pos.setter
     def max_pos(self, max_pos):
-        self.objects['max_pos'] = max_pos
+        try:
+            self.objects['max_pos'] = max_pos
+        except ValueError:
+            self.objects['max_pos'] = np.empty((0, 2))
 
     def __len__(self):
         return len(self.objects)
