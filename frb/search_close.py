@@ -2,9 +2,6 @@ import numpy as np
 from itertools import combinations
 
 
-# TODO: Finding close candidates in (t, DM)-space is another logical task.
-# FIXME: Currently it saves only one of two close candidates. Should save 2.
-# TODO: Create abstract function for case of 2 arrays.
 def find_close_2(arr1, arr2, ind_dict):
     """
     :return:
