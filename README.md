@@ -13,7 +13,7 @@ numpy, scipy, matplotlib.pyplot (for plots)
 
 ``user@host:~$ python search_file.txt data.txt -nu_max NU_MAX -dnu DNU -dt DT
 -dm_min DM_MIN -dm_max DM_MAX -d_t D_T -d_dm D_DM -perc PERC -savefig_dyn
-fig.png -savefig_dedm fig.png`` -threads [THREADS]
+fig.png -savefig_dedm fig.png -threads [THREADS]``
 
 Parameters:
 
