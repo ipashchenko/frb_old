@@ -50,9 +50,9 @@ class BasicImageObjects(object):
         _objects['dy'] = dy
         self.objects = _objects
         self._classify(image, labeled_array)
-        self._sort()
         # Fetch positions of only successfuly classified objects
         self.max_pos = self._find_positions(image, labeled_array)
+        self._sort()
 
     def _find_positions(self, image, labeled_array):
         return maximum_position(image, labels=labeled_array, index=self.label)
@@ -246,17 +246,18 @@ if __name__ == '__main__':
     frame1.add_pulse(70., 0.15, 0.003, dm=500.)
     frame1.add_pulse(80., 0.125, 0.003, dm=500.)
     dm_grid, frames_t_dedm = frame1.grid_dedisperse(0, 1000.)
-    objects1 = TDMImageObjects(frames_t_dedm, frame1.t, dm_grid, 99.95)
-    objects1.save_txt("saved_objects_1.txt", "x", "y")
-    frame2 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
-    frame2.add_pulse(10., 0.3, 0.003, dm=500.)
-    frame2.add_pulse(25., 0.275, 0.003, dm=500.)
-    frame2.add_pulse(30., 0.25, 0.003, dm=500.)
-    frame2.add_pulse(45., 0.225, 0.003, dm=500.)
-    frame2.add_pulse(50., 0.2, 0.003, dm=500.)
-    frame2.add_pulse(65., 0.175, 0.003, dm=500.)
-    frame2.add_pulse(70., 0.15, 0.003, dm=500.)
-    frame2.add_pulse(80., 0.125, 0.003, dm=500.)
-    dm_grid, frames_t_dedm = frame2.grid_dedisperse(0, 1000.)
-    objects2 = TDMImageObjects(frames_t_dedm, frame2.t, dm_grid, 99.95)
-    objects2.save_txt("saved_objects_2.txt", "x", "y")
+    objects1 = TDMImageObjects(frames_t_dedm, frame1.t, dm_grid, 99.95,
+                               d_dm=100., dt=0.003)
+    objects1.save_txt("saved_objects_empty.txt", "x", "y")
+    # frame2 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
+    # frame2.add_pulse(10., 0.3, 0.003, dm=500.)
+    # frame2.add_pulse(25., 0.275, 0.003, dm=500.)
+    # frame2.add_pulse(30., 0.25, 0.003, dm=500.)
+    # frame2.add_pulse(45., 0.225, 0.003, dm=500.)
+    # frame2.add_pulse(50., 0.2, 0.003, dm=500.)
+    # frame2.add_pulse(65., 0.175, 0.003, dm=500.)
+    # frame2.add_pulse(70., 0.15, 0.003, dm=500.)
+    # frame2.add_pulse(80., 0.125, 0.003, dm=500.)
+    # dm_grid, frames_t_dedm = frame2.grid_dedisperse(0, 1000.)
+    # objects2 = TDMImageObjects(frames_t_dedm, frame2.t, dm_grid, 99.95)
+    # objects2.save_txt("saved_objects_2.txt", "x", "y")
