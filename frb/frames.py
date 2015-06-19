@@ -136,6 +136,35 @@ class Frame(object):
             self.values = values[:, :]
         return values
 
+    # FIXME: at small ``dt`` it uses too small DM-step for my laptop RAM:)
+    def _de_disperse_freq_average(self, dm):
+        """
+        De-disperse frame using specified value of DM and average in frequency.
+
+        :param dm:
+            Dispersion measure to use in de-dispersion [cm^3 / pc].
+
+        :notes:
+            This method avoids creating ``(n_nu, n_t)`` arrays and must be
+            faster for data with big sizes. But it returns already frequency
+            averaged de-dispersed dyn. spectra.
+
+        """
+        # MHz ** 2 * cm ** 3 * s / pc
+        k = 1. / (2.410331 * 10 ** (-4))
+
+        # Calculate shift of time caused by de-dispersion for all channels
+        dt_all = k * dm * (1. / self.nu ** 2. - 1. / self.nu_0 ** 2.)
+        # Find what number of time bins corresponds to this shifts
+        nt_all = vint(vround(dt_all / self.dt))
+        # Container for summing de-dispersed frequency channels
+        values = np.zeros(self.n_t)
+        # Roll each axis (freq. channel) to each own number of time steps.
+        for i in range(self.n_nu):
+            values += np.roll(self.values[i], -nt_all[i])
+
+        return values / self.n_nu
+
     def average_in_time(self, values=None, plot=False):
         """
         Average frame in time.
@@ -258,7 +287,8 @@ class Frame(object):
                                      gp2.sample(self.nu) ** 2.)
                 self.values[:, i] += gp_samples
 
-    def step_dedisperse(self, dm):
+    def _step_dedisperse(self, dm):
+
         """
         Method that de-disperses frame using specified value of DM and frequency
         averages the result.
@@ -311,7 +341,7 @@ class Frame(object):
             m = map
 
         # Accumulator of de-dispersed frequency averaged frames
-        frames = list(m(self.step_dedisperse, dm_grid.tolist()))
+        frames = list(m(self._de_disperse_freq_average, dm_grid.tolist()))
         frames = np.array(frames)
 
         # Plot results
@@ -357,8 +387,9 @@ class DataFrame(Frame):
 
 
 if __name__ == '__main__':
+    import time
     from objects import TDMImageObjects
-    fname = '/home/ilya/code/frb/data/90_sec_wb_raes08a_128ch'
+    fname = '/home/ilya/code/frb/data/630_sec_wb_raes08a_128ch'
     frame1 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
     frame1.add_pulse(10., 0.3, 0.003, dm=500.)
     frame1.add_pulse(20., 0.275, 0.003, dm=500.)
@@ -368,6 +399,9 @@ if __name__ == '__main__':
     frame1.add_pulse(60., 0.175, 0.003, dm=500.)
     frame1.add_pulse(70., 0.15, 0.003, dm=500.)
     frame1.add_pulse(80., 0.125, 0.003, dm=500.)
-    dm_grid, frames_t_dedm = frame1.grid_dedisperse(0, 1000.)
+    t0 = time.time()
+    dm_grid, frames_t_dedm = frame1.grid_dedisperse(0, 1000., threads=4)
+    t1 = time.time()
+    print t1 - t0
     objects1 = TDMImageObjects(frames_t_dedm, frame1.t, dm_grid, 99.95)
     objects1.save_txt("saved_objects_1.txt", "x", "y")
