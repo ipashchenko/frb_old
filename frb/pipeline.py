@@ -1,8 +1,11 @@
 import glob
 import os
 import pyfits as pf
+import numpy as np
 from frames import DataFrame
 from objects import TDMImageObjects
+from search_close import find_close
+import json
 
 
 # TODO: To compare pulse candidates from different antennas we need time of
@@ -30,7 +33,7 @@ def search_antenna(antenna, experiment, dm_min, dm_max, d_t, d_dm,
         Path to place where keep results. If None then use cwd. (default: None)
     :return:
     """
-    path = path or os.get_cwd()
+    path = path or os.getcwd()
     if not path.endswith('/'):
         path += '/'
     path = path + "*.FITS"
@@ -64,7 +67,7 @@ def search_antenna(antenna, experiment, dm_min, dm_max, d_t, d_dm,
         else:
             candidates += new_candidates
 
-    outpath = outpath or os.get_cwd()
+    outpath = outpath or os.getcwd()
     if not outpath.endswith('/'):
         outpath += '/'
     candidates.save_txt(outpath + experiment + '_' + antenna + '.txt', 'x', 'y')
@@ -93,7 +96,7 @@ def search_experiment_antennnas(experiment, antennas, d_t, d_dm, dm_min, dm_max,
 
     :param experiment:
         Experiment name.
-    :param antenna:
+    :param antennas:
         Iterable of antenna names.
     :param d_t:
         Difference in time of pulse at highest frequency.
@@ -114,7 +117,7 @@ def compare_antennas_candidates(experiment, d_t, d_dm, antennas=None,
                                 path=None, outpath=None):
     """
     Function that uses text files with candidates from several antennas to find
-    coinciding.
+    coinciding up to user-specified tolerance levels for ``t`` & ``DM``.
 
     :param experiment:
         Experiment name.
@@ -128,39 +131,26 @@ def compare_antennas_candidates(experiment, d_t, d_dm, antennas=None,
     :param path: (optional)
         Path to text files. If None then search in cwd. (default: None)
     :param outpath: (optional)
-        Path to place where keep results. If None then use cwd. (default: None)
+        Path to place where to keep results. If ``None`` then use cwd.
+        (default: None)
     :return:
         Text file with antennas (at least 2) and (t, DM)-coordinates of
-        confirmed candidates in outpath directory.
+        confirmed candidates in ``outpath`` directory.
     """
-    pass
+    path = path or os.getcwd()
+    if not path.endswith('/'):
+        path += '/'
+    path = path + experiment + "_" + "*.txt"
+    fnames = glob.glob(path)
+    if not fnames:
+        raise Exception("No files for " + experiment + " found in ", path)
 
+    antennas_results = list()
+    for fname in fnames:
+        antenna_name = fname.split('_')[-1].split('.')[0]
+        values = np.loadtxt(fname)
+        antennas_results.append({antenna_name: values})
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    results = find_close(antennas_results, {0: d_t, 1: d_dm})
 
 
