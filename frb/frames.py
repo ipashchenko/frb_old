@@ -92,7 +92,9 @@ class Frame(object):
     def add_values(self, array):
         """
         Add dyn. spectra in form of numpy array (#ch, #t,) to instance.
+
         :param array:
+            Array-like of dynamical spectra (#ch, #t,).
         """
         array = np.atleast_2d(array)
         assert self.values.shape == array.shape
@@ -113,7 +115,7 @@ class Frame(object):
             Dispersion measure to use in de-dispersion [cm^3 / pc].
         :param replace: (optional)
             Replace instance's frame values with de-dispersed ones? (default:
-            ``True``)
+            ``False``)
 
         """
         # MHz ** 2 * cm ** 3 * s / pc
@@ -138,7 +140,7 @@ class Frame(object):
         """
         Average frame in time.
 
-        :param values: ``(n_t, n_nu)`` (optional)
+        :param values: ``(n_nu, n_t)`` (optional)
             Numpy array of Frame values to average. If ``None`` then use current
             instance's values. (default: ``None``)
         :param plot: (optional)
@@ -146,7 +148,7 @@ class Frame(object):
             ``False``)
 
         :return:
-            Numpy array with length equals number of frequency channels.
+            Numpy array with length equals the number of frequency channels.
         """
         if values is None:
             values = self.values
@@ -352,3 +354,20 @@ class DataFrame(Frame):
             self.values += values[n_nu_discard / 2 : -n_nu_discard / 2, :]
         else:
             self.values += values
+
+
+if __name__ == '__main__':
+    from objects import TDMImageObjects
+    fname = '/home/ilya/code/frb/data/90_sec_wb_raes08a_128ch'
+    frame1 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
+    frame1.add_pulse(10., 0.3, 0.003, dm=500.)
+    frame1.add_pulse(20., 0.275, 0.003, dm=500.)
+    frame1.add_pulse(30., 0.25, 0.003, dm=500.)
+    frame1.add_pulse(40., 0.225, 0.003, dm=500.)
+    frame1.add_pulse(50., 0.2, 0.003, dm=500.)
+    frame1.add_pulse(60., 0.175, 0.003, dm=500.)
+    frame1.add_pulse(70., 0.15, 0.003, dm=500.)
+    frame1.add_pulse(80., 0.125, 0.003, dm=500.)
+    dm_grid, frames_t_dedm = frame1.grid_dedisperse(0, 1000.)
+    objects1 = TDMImageObjects(frames_t_dedm, frame1.t, dm_grid, 99.95)
+    objects1.save_txt("saved_objects_1.txt", "x", "y")
