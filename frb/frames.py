@@ -81,7 +81,7 @@ class Frame(object):
         self.n_t = n_t
         self.nu_0 = nu_0
         self.t_0 = t_0
-        self.values = np.zeros(n_nu * n_t, dtype=float).reshape((n_nu, n_t,))
+        self.values = np.zeros(n_nu * n_t, dtype=complex).reshape((n_nu, n_t,))
         nu = np.arange(n_nu)
         t = np.arange(n_t)
         self.nu = (nu_0 - nu * dnu)[::-1]
@@ -158,7 +158,7 @@ class Frame(object):
         # Find what number of time bins corresponds to this shifts
         nt_all = vint(vround(dt_all / self.dt))
         # Container for summing de-dispersed frequency channels
-        values = np.zeros(self.n_t)
+        values = np.zeros(self.n_t, dtype=complex)
         # Roll each axis (freq. channel) to each own number of time steps.
         for i in range(self.n_nu):
             values += np.roll(self.values[i], -nt_all[i])
@@ -375,37 +375,40 @@ class DataFrame(Frame):
         1d-time series of data for each frequency channel.
 
     """
-    def __init__(self, fname, nu_0, t_0, dnu, dt, n_nu_discard=0):
+    def __init__(self, fname1, fname2, nu_0, t_0, dnu, dt, n_nu_discard=0):
         # Assert even number of channels to discard
         assert not int(n_nu_discard) % 2
 
-        values = np.loadtxt(fname, unpack=True)
-        n_nu, n_t = np.shape(values)
+        values1 = np.loadtxt(fname1, unpack=True)
+        values2 = np.loadtxt(fname2, unpack=True)
+        n_nu, n_t = np.shape(values1)
         super(DataFrame, self).__init__(n_nu - n_nu_discard, n_t,
                                         nu_0 - n_nu_discard * dnu / 2., t_0,
                                         dnu, dt)
         if n_nu_discard:
-            self.values += values[n_nu_discard / 2 : -n_nu_discard / 2, :]
+            self.values += values1[n_nu_discard / 2 : -n_nu_discard / 2, :] +\
+                1j * values2
         else:
-            self.values += values
+            self.values += values1 + 1j * values2
 
 
 if __name__ == '__main__':
     import time
     from objects import TDMImageObjects
-    fname = '/home/ilya/code/frb/data/630_sec_wb_raes08a_128ch'
-    frame1 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
-    frame1.add_pulse(10., 0.3, 0.003, dm=500.)
-    frame1.add_pulse(20., 0.275, 0.003, dm=500.)
-    frame1.add_pulse(30., 0.25, 0.003, dm=500.)
-    frame1.add_pulse(40., 0.225, 0.003, dm=500.)
-    frame1.add_pulse(50., 0.2, 0.003, dm=500.)
-    frame1.add_pulse(60., 0.175, 0.003, dm=500.)
-    frame1.add_pulse(70., 0.15, 0.003, dm=500.)
-    frame1.add_pulse(80., 0.125, 0.003, dm=500.)
+    fname1 = '/home/ilya/code/frb/data/90_sec_wb_raes08a_128ch'
+    fname2 = '/home/ilya/code/frb/data/90_sec_wb_raes08a_128ch'
+    frame = DataFrame(fname1, fname2, 1684., 0., 16. / 128., 0.001)
+    # frame.add_pulse(10., 0.3, 0.003, dm=500.)
+    # frame.add_pulse(20., 0.275, 0.003, dm=500.)
+    # frame.add_pulse(30., 0.25, 0.003, dm=500.)
+    # frame.add_pulse(40., 0.225, 0.003, dm=500.)
+    # frame.add_pulse(50., 0.2, 0.003, dm=500.)
+    # frame.add_pulse(60., 0.175, 0.003, dm=500.)
+    # frame.add_pulse(70., 0.15, 0.003, dm=500.)
+    # frame.add_pulse(80., 0.125, 0.003, dm=500.)
     t0 = time.time()
-    dm_grid, frames_t_dedm = frame1.grid_dedisperse(0, 1000., threads=4)
+    dm_grid, frames_t_dedm = frame.grid_dedisperse(0, 1000., threads=4)
     t1 = time.time()
     print t1 - t0
-    objects1 = TDMImageObjects(frames_t_dedm, frame1.t, dm_grid, 99.95)
-    objects1.save_txt("saved_objects_1.txt", "x", "y")
+    # objects = TDMImageObjects(frames_t_dedm, frame.t, dm_grid, 99.95)
+    # objects.save_txt("saved_objects.txt", "x", "y")
