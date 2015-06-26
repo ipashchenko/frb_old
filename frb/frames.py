@@ -344,9 +344,10 @@ class Frame(object):
         frames = list(m(self._de_disperse_freq_average, dm_grid.tolist()))
         frames = np.array(frames)
 
-        # Close pool
-        pool.close()
-        pool.join()
+        if pool:
+            # Close pool
+            pool.close()
+            pool.join()
 
         # Plot results
         if savefig is not None:
