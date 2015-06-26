@@ -393,19 +393,21 @@ class DataFrame(Frame):
 if __name__ == '__main__':
     import time
     from objects import TDMImageObjects
-    fname = '/home/ilya/code/frb/data/630_sec_wb_raes08a_128ch'
-    frame1 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
-    frame1.add_pulse(10., 0.3, 0.003, dm=500.)
-    frame1.add_pulse(20., 0.275, 0.003, dm=500.)
-    frame1.add_pulse(30., 0.25, 0.003, dm=500.)
-    frame1.add_pulse(40., 0.225, 0.003, dm=500.)
-    frame1.add_pulse(50., 0.2, 0.003, dm=500.)
-    frame1.add_pulse(60., 0.175, 0.003, dm=500.)
-    frame1.add_pulse(70., 0.15, 0.003, dm=500.)
-    frame1.add_pulse(80., 0.125, 0.003, dm=500.)
+    # fname = '/home/ilya/code/frb/data/crab_600sec_64ch_1ms.txt'
+    fname = '/home/ilya/code/frb/data/out_crab_full_64x1'
+    frame = DataFrame(fname, 1684., 0., 16. / 64., 0.001)
+    # frame.add_pulse(10., 9.0, 0.001, dm=1000.)
+    # frame.add_pulse(20., 2.0, 0.003, dm=500.)
+    # frame.add_pulse(30., 1.0, 0.003, dm=500.)
+    # frame.add_pulse(40., 0.5, 0.003, dm=500.)
+    # frame.add_pulse(50., 0.25, 0.003, dm=500.)
+    # frame.add_pulse(60., 0.125, 0.003, dm=500.)
+    # frame.add_pulse(70., 0.0625, 0.003, dm=500.)
+    # frame.add_pulse(80., 0.03125, 0.003, dm=500.)
     t0 = time.time()
-    dm_grid, frames_t_dedm = frame1.grid_dedisperse(0, 1000., threads=4)
+    dm_grid, frames_t_dedm = frame.grid_dedisperse(0, 1000., threads=4)
     t1 = time.time()
     print t1 - t0
-    objects1 = TDMImageObjects(frames_t_dedm, frame1.t, dm_grid, 99.95)
-    objects1.save_txt("saved_objects_1.txt", "x", "y")
+    objects = TDMImageObjects(frames_t_dedm, frame.t, dm_grid, 99.95, d_dm=100.,
+                              dt=0.003)
+    # objects.save_txt("saved_objects.txt", "x", "y")
