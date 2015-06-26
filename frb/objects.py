@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.ndimage.measurements import maximum_position, label, find_objects
 from scipy.ndimage.morphology import generate_binary_structure
+from multiprocessing import Pool
 
 
 class BasicImageObjects(object):
@@ -231,6 +232,58 @@ class TDMImageObjects(ImageObjects):
         """
         self.objects = self.objects[np.logical_and(self.d_y > self._d_dm,
                                                    self.d_x > self._dt)]
+
+
+class BatchedTDMIO(object):
+    def __init__(self, image, x_grid, y_grid, perc, d_dm=100., dt=0.003):
+        self.image = image
+        self.x_grid = x_grid
+        self.y_grid = y_grid
+        self.perc = perc
+        self.d_dm = d_dm
+        self.dt = dt
+
+    def analyze_slice(self, x_slice):
+        print "analyzing slice ", x_slice
+        tdmio = TDMImageObjects(self.image[:, x_slice], self.x_grid[x_slice],
+                                self.y_grid, self.perc, d_dm=self.d_dm,
+                                dt=self.dt)
+        return tdmio.xy
+
+    def run(self, batch_size=100000, threads=1):
+        """
+
+        :param bathsize: (optional)
+            Size of image in x-direction, that will be searched for objects in
+            bathes. If ``None`` then don't use batches and search the whole
+            image at once. (default: ``None``)
+        :param threads:
+        :return:
+        """
+
+        length = self.image.shape[1]
+        n = length // batch_size
+        ends = np.linspace(0, length, n)
+        slice_list = [slice(ends[i], ends[i + 1]) for i in range(n - 1)]
+
+        pool = None
+        if threads > 1:
+            pool = Pool(threads)
+
+        if pool:
+            m = pool.map
+        else:
+            m = map
+
+        xy = list(m(self.analyze_slice, slice_list))
+        xy = np.vstack(xy)
+
+        if pool:
+            # Close pool
+            pool.close()
+            pool.join()
+
+        return xy
 
 
 if __name__ == '__main__':
