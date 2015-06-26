@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.ndimage.measurements import maximum_position, label, find_objects
 from scipy.ndimage.morphology import generate_binary_structure
-from multiprocessing import Pool
 
 
 class BasicImageObjects(object):
@@ -250,7 +249,7 @@ class BatchedTDMIO(object):
                                 dt=self.dt)
         return tdmio.xy
 
-    def run(self, batch_size=100000, threads=1):
+    def run(self, batch_size=500000, threads=1):
         """
 
         :param bathsize: (optional)
@@ -266,51 +265,32 @@ class BatchedTDMIO(object):
         ends = np.linspace(0, length, n)
         slice_list = [slice(ends[i], ends[i + 1]) for i in range(n - 1)]
 
-        pool = None
-        if threads > 1:
-            pool = Pool(threads)
-
-        if pool:
-            m = pool.map
-        else:
-            m = map
-
-        xy = list(m(self.analyze_slice, slice_list))
+        xy = map(self.analyze_slice, slice_list)
         xy = np.vstack(xy)
-
-        if pool:
-            # Close pool
-            pool.close()
-            pool.join()
 
         return xy
 
 
+def profile(image, x, y, batch_size, threads):
+    import time
+    btdmio = BatchedTDMIO(image, x, y, 99.95)
+    t0 = time.time()
+    xy = btdmio.run(batch_size, threads)
+    t1 = time.time()
+    print t1 - t0, xy
+
+
 if __name__ == '__main__':
     from frames import DataFrame
-    fname = '/home/ilya/code/frb/data/90_sec_wb_raes08a_128ch'
-    frame1 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
-    frame1.add_pulse(10., 0.3, 0.003, dm=500.)
-    frame1.add_pulse(20., 0.275, 0.003, dm=500.)
-    frame1.add_pulse(30., 0.25, 0.003, dm=500.)
-    frame1.add_pulse(40., 0.225, 0.003, dm=500.)
-    frame1.add_pulse(50., 0.2, 0.003, dm=500.)
-    frame1.add_pulse(60., 0.175, 0.003, dm=500.)
-    frame1.add_pulse(70., 0.15, 0.003, dm=500.)
-    frame1.add_pulse(80., 0.125, 0.003, dm=500.)
-    dm_grid, frames_t_dedm = frame1.grid_dedisperse(0, 1000.)
-    objects1 = TDMImageObjects(frames_t_dedm, frame1.t, dm_grid, 99.95,
-                               d_dm=100., dt=0.003)
-    objects1.save_txt("saved_objects_empty.txt", "x", "y")
-    # frame2 = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
-    # frame2.add_pulse(10., 0.3, 0.003, dm=500.)
-    # frame2.add_pulse(25., 0.275, 0.003, dm=500.)
-    # frame2.add_pulse(30., 0.25, 0.003, dm=500.)
-    # frame2.add_pulse(45., 0.225, 0.003, dm=500.)
-    # frame2.add_pulse(50., 0.2, 0.003, dm=500.)
-    # frame2.add_pulse(65., 0.175, 0.003, dm=500.)
-    # frame2.add_pulse(70., 0.15, 0.003, dm=500.)
-    # frame2.add_pulse(80., 0.125, 0.003, dm=500.)
-    # dm_grid, frames_t_dedm = frame2.grid_dedisperse(0, 1000.)
-    # objects2 = TDMImageObjects(frames_t_dedm, frame2.t, dm_grid, 99.95)
-    # objects2.save_txt("saved_objects_2.txt", "x", "y")
+    import time
+    # fname = '/home/ilya/code/frb/data/crab_600sec_64ch_1ms.txt'
+    fname = '/home/ilya/code/frb/data/out_crab_full_64x1'
+    frame = DataFrame(fname, 1684., 0., 16. / 64., 0.001)
+    t0 = time.time()
+    dm_grid, frames_t_dedm = frame.grid_dedisperse(0, 1000., threads=4)
+    x = frame.t.copy()
+    y = dm_grid
+    t1 = time.time()
+    print t1 - t0
+    xy = profile(frames_t_dedm, x, y, 60000, 4)
+    print xy
