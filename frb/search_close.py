@@ -105,24 +105,3 @@ def unique_rows(a):
     ui = np.ones(len(a), 'bool')
     ui[1:] = (diff != 0).any(axis=1)
     return a[ui]
-
-
-if __name__ == '__main__':
-    arr1 = np.asarray([[1., 2., 3.],
-                       [4., 5., 6.],
-                       [9.9, 19.8, 6.]])
-    arr2 = np.asarray([[1.5, 2.5, 3.5],
-                       [4.5, 5.5, 6.5]])
-    arr3 = np.asarray([[10., 20., 30.],
-                       [40., 50., 60.]])
-    arr4 = np.asarray([[1.1, 2.2, 3.5],
-                       [4.5, 5.5, 6.5]])
-    arr5 = np.asarray([[10.1, 20.2, 3.5],
-                       [4.5, 5.5, 6.5]])
-    arr6 = np.asarray([[10.9, 20.2, 3.5],
-                       [4.5, 9.9, 6.5],
-                       [40.1, 50.3, 6.5]])
-    array_dict = {'arr1': arr1, 'arr2': arr2, 'arr3': arr3, 'arr4': arr4,
-                  'arr5': arr5, 'arr6': arr6}
-    indx_dict = {0: 0.6, 1: 0.6}
-    results = find_close(array_dict, indx_dict)
