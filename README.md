@@ -12,7 +12,7 @@ numpy, scipy, matplotlib.pyplot (for plots)
 ## Searching for pulses in txt-format data file:
 
 ``user@host:~$ python search_file.txt data.txt -nu_max NU_MAX -dnu DNU -dt DT
--dm_min DM_MIN -dm_max DM_MAX [-d_t D_T] [-d_dm D_DM] [-perc PERC] [-savefig_dyn
+-dm_min DM_MIN -dm_max DM_MAX [-batchsize BATCHSIZE] [-d_t D_T] [-d_dm D_DM] [-perc PERC] [-savefig_dyn
 fig.png] [-savefig_dedm fig.png] [-threads THREADS]``
 
 Parameters:
@@ -29,6 +29,9 @@ Parameters:
 - ``dm_min`` - minimal value of DM window to search [cm^3 / pc].
 
 - ``dm_max`` - maximum value of DM window to search [cm^3 / pc].
+
+- ``batchsize`` - size of image in t-direction, that will be searched for
+    candidates in batches. Default: 100000
 
 - ``d_t`` - width of feature [s] in (t, DM)-space along t-axis to treat it as
     candidate. Default: 0.005
