@@ -5,7 +5,6 @@ import numpy as np
 from frames import DataFrame
 from objects import TDMImageObjects
 from search_close import find_close
-import json
 
 
 # TODO: To compare pulse candidates from different antennas we need time of
@@ -152,5 +151,3 @@ def compare_antennas_candidates(experiment, d_t, d_dm, antennas=None,
         antennas_results.append({antenna_name: values})
 
     results = find_close(antennas_results, {0: d_t, 1: d_dm})
-
-
