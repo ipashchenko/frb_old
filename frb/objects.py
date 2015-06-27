@@ -10,7 +10,8 @@ class BasicImageObjects(object):
     :param image:
         2D numpy array with image.
     :param perc:
-        Percent of image values to blank while labeling image with objects.
+        Value of percent of image values to blank while labeling image with
+        objects.
 
     :notes:
         Sometimes we need more features for classification. Currently it uses
@@ -204,10 +205,10 @@ class TDMImageObjects(ImageObjects):
 
     :param d_dm: (optional)
         Value of DM spanned by object to count it as candidate for pulse
-        [cm^3/pc]. (default: ``150.``)
+        [cm^3/pc]. (default: ``100.``)
     :param dt: (optional)
         Value of t spanned by object to count it as candidate for pulse
-        [s]. (default: ``0.005``)
+        [s]. (default: ``0.003``)
 
     """
     def __init__(self, image, x_grid, y_grid, perc, d_dm=150., dt=0.005):
@@ -234,34 +235,66 @@ class TDMImageObjects(ImageObjects):
 
 
 class BatchedTDMIO(object):
+    """
+    Class that used to analyze image in batches.
+
+    :param image:
+        2D-numpy array of image to be analyzed.
+    :param x_grid:
+        Array-like of grid of coordinates in x-direction.
+    :param y_grid:
+        Array-like of grid of coordinates in y-direction.
+    :param perc:
+        Value of percent of image values to blank while labeling image with
+        objects.
+    :param d_dm: (optional)
+        Value of DM spanned by object to count it as candidate for pulse
+        [cm^3/pc]. (default: ``100.``)
+    :param dt: (optional)
+        Value of t spanned by object to count it as candidate for pulse
+        [s]. (default: ``0.003``)
+
+    """
     def __init__(self, image, x_grid, y_grid, perc, d_dm=100., dt=0.003):
-        self.image = image
-        self.x_grid = x_grid
-        self.y_grid = y_grid
+        self.image = np.asarray(image)
+        self.x_grid = np.array(x_grid)
+        self.y_grid = np.array(y_grid)
         self.perc = perc
         self.d_dm = d_dm
         self.dt = dt
 
     def analyze_slice(self, x_slice):
+        """
+        Method that search for candidates in part of image that is specified by
+        slice.
+        :param x_slice:
+            Slice object that used to choose region of image to be analyzed in
+            x-direction.
+        :return:
+            2D-numpy arrays (# of candidates, 2,) with t[s], DM[cm^3/pc] values
+            for each candidate.
+
+        """
         print "analyzing slice ", x_slice
         tdmio = TDMImageObjects(self.image[:, x_slice], self.x_grid[x_slice],
                                 self.y_grid, self.perc, d_dm=self.d_dm,
                                 dt=self.dt)
         return tdmio.xy
 
-    def run(self, batch_size=500000, threads=1):
+    def run(self, batch_size=500000):
         """
 
         :param bathsize: (optional)
             Size of image in x-direction, that will be searched for objects in
-            bathes. If ``None`` then don't use batches and search the whole
+            batches. If ``None`` then don't use batches and search the whole
             image at once. (default: ``None``)
-        :param threads:
         :return:
-        """
+            2D-numpy arrays (# of candidates, 2,) with t[s], DM[cm^3/pc] values
+            for each candidate.
 
+        """
         length = self.image.shape[1]
-        n = length // batch_size
+        n = length // batch_size + 1
         ends = np.linspace(0, length, n)
         slice_list = [slice(ends[i], ends[i + 1]) for i in range(n - 1)]
 
@@ -269,28 +302,3 @@ class BatchedTDMIO(object):
         xy = np.vstack(xy)
 
         return xy
-
-
-def profile(image, x, y, batch_size, threads):
-    import time
-    btdmio = BatchedTDMIO(image, x, y, 99.95)
-    t0 = time.time()
-    xy = btdmio.run(batch_size, threads)
-    t1 = time.time()
-    print t1 - t0, xy
-
-
-if __name__ == '__main__':
-    from frames import DataFrame
-    import time
-    # fname = '/home/ilya/code/frb/data/crab_600sec_64ch_1ms.txt'
-    fname = '/home/ilya/code/frb/data/out_crab_full_64x1'
-    frame = DataFrame(fname, 1684., 0., 16. / 64., 0.001)
-    t0 = time.time()
-    dm_grid, frames_t_dedm = frame.grid_dedisperse(0, 1000., threads=4)
-    x = frame.t.copy()
-    y = dm_grid
-    t1 = time.time()
-    print t1 - t0
-    xy = profile(frames_t_dedm, x, y, 60000, 4)
-    print xy
