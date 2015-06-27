@@ -131,4 +131,3 @@ def find_noisy(frame, n, axis=0):
         classif.fit(data)
         result_dict.update({i: [classif.bic(data), classif]})
     return result_dict
-    #return sorted(result_dict.items(), key=lambda x:x[1].aic(data))
