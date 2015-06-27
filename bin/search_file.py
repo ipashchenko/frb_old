@@ -1,10 +1,11 @@
 import os
 import sys
 import argparse
+import numpy as np
 path = os.path.normpath(os.path.join(os.path.dirname(sys.argv[0]), '..'))
 sys.path.insert(0, path)
 from frb.frames import DataFrame
-from frb.objects import TDMImageObjects
+from frb.objects import BatchedTDMIO
 try:
     import matplotlib.pyplot as plt
 except ImportError:
@@ -32,7 +33,7 @@ if __name__ == '__main__':
                         help='- mininum DM to search [cm^3/pc]')
     parser.add_argument('-dm_max', action='store', dest='dm_max', type=float,
                         help='- maxmum DM to search [cm^3/pc]')
-    parser.add_argument('-perc', action='store', dest='perc', default=99.5,
+    parser.add_argument('-perc', action='store', dest='perc', default=99.95,
                         type=float, help='- percentile of image values that is'
                                          ' used to blank image before'
                                          ' searching for objects.'
@@ -42,7 +43,7 @@ if __name__ == '__main__':
                                          '(t, DM)-space along DM-axis to treat'
                                          ' it as candidate.'
                                          ' Default: 100.')
-    parser.add_argument('-d_t', action='store', dest='d_t', default=0.005,
+    parser.add_argument('-d_t', action='store', dest='d_t', default=0.003,
                         type=float, help='- width of feature [s] in'
                                          '(t, DM)-space along DM-axis to treat'
                                          ' it as candidate.'
@@ -61,18 +62,26 @@ if __name__ == '__main__':
                         type=int, help='- number of threads used for '
                                          'parallelization'
                                          ' Default: 1')
+    parser.add_argument('-batchsize', action='store', dest='batchsize',
+                        default=100000, type=int, help='- size of batch size '
+                                                       'in t-direction.'
+                                                       'Default: 100000')
 
     args = parser.parse_args()
 
     frame = DataFrame(args.fname, args.nu_max, args.t0, args.dnu, args.dt)
-    frame.plot(savefig=args.savefig_dyn)
     dm_min = args.dm_min
     dm_max = args.dm_max
 
     dm_grid, frames_t_dedm = frame.grid_dedisperse(dm_min, dm_max,
                                                    savefig=args.savefig_dedm,
                                                    threads=args.threads)
-    candidates = TDMImageObjects(frames_t_dedm, frame.t, dm_grid,
-                                 perc=args.perc, d_dm=args.d_dm, dt=args.d_t)
+    btdmio = BatchedTDMIO(frames_t_dedm, frame.t, dm_grid, perc=args.perc,
+                          d_dm=args.d_dm, dt=args.d_t)
+    candidates = btdmio.run(batch_size=args.batchsize)
+    print "Candidates: t [s], DM [cm^3/pc]:"
+    print "==============================="
+    print candidates
+    print "==============================="
     if args.save_result:
-        candidates.save_txt(args.save_result, 'x', 'y')
+        np.savetxt(args.save_result, candidates)
