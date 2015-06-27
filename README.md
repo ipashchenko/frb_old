@@ -12,8 +12,8 @@ numpy, scipy, matplotlib.pyplot (for plots)
 ## Searching for pulses in txt-format data file:
 
 ``user@host:~$ python search_file.txt data.txt -nu_max NU_MAX -dnu DNU -dt DT
--dm_min DM_MIN -dm_max DM_MAX -d_t D_T -d_dm D_DM -perc PERC -savefig_dyn
-fig.png -savefig_dedm fig.png``
+-dm_min DM_MIN -dm_max DM_MAX [-batchsize BATCHSIZE] [-d_t D_T] [-d_dm D_DM] [-perc PERC] [-savefig_dyn
+fig.png] [-savefig_dedm fig.png] [-threads THREADS]``
 
 Parameters:
 
@@ -22,7 +22,7 @@ Parameters:
 
 - ``-nu_max`` - frequency of highest frequency channel [MHz].
 
-- ``-dnu`` - frequency with of single frequency channel [MHz].
+- ``-dnu`` - frequency width of single frequency channel [MHz].
 
 - ``-dt`` - time step (resolution) [s].
 
@@ -30,7 +30,10 @@ Parameters:
 
 - ``dm_max`` - maximum value of DM window to search [cm^3 / pc].
 
-- ``d_t`` - width of feature [s] in (t, DM)-space along DM-axis to treat it as
+- ``batchsize`` - size of image in t-direction, that will be searched for
+    candidates in batches. Default: 100000
+
+- ``d_t`` - width of feature [s] in (t, DM)-space along t-axis to treat it as
     candidate. Default: 0.005
 
 - ``d_dm`` - width of feature [cm^3/pc] in (t, DM)-space along DM-axis to treat
@@ -46,6 +49,9 @@ Parameters:
 
 - ``save_result`` - file name to save (t, DM)-coordinates of found candidates.
     [s, cm^3/pc]
+    
+- ``threads`` - number of threads used for parallelization of grid
+    de-dispersion. Default is ``1`` (don't use parallelization).
 
 ## Notes
 
@@ -67,6 +73,9 @@ tunable parameters:
     overriding/extending ``TDMImageObjects._classify`` method that gets
     ``image`` and ``labelled array`` as first two positional arguments.
 
+Current implementation allows parallelization of grid de-dispersion step using
+``multiprocessing`` module. It gives 4x-speed up for 630000 time counts x 128 frequency
+channels data with ``threads=4`` and 1.5x-speed up for ``nthreads=2``.
 
 
 License

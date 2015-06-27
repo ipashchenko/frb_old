@@ -93,7 +93,7 @@ def roll2d(a, shift, axis=0):
         Axis along which to shift array. (default: ``0``)
     :return:
         Shifted 2D numpy array.
-        
+
     """
 
     a = np.atleast_2d(a)
@@ -119,3 +119,15 @@ def roll2d(a, shift, axis=0):
         row = indices
 
     return a[row, col]
+
+
+def find_noisy(frame, n, axis=0):
+    values = np.mean(frame.values, axis=axis)
+    from sklearn.mixture import GMM
+    result_dict = {}
+    data = values.reshape((values.size, 1))
+    for i in range(1, n + 1):
+        classif = GMM(n_components=i)
+        classif.fit(data)
+        result_dict.update({i: [classif.bic(data), classif]})
+    return result_dict

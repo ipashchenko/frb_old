@@ -10,7 +10,8 @@ class BasicImageObjects(object):
     :param image:
         2D numpy array with image.
     :param perc:
-        Percent of image values to blank while labeling image with objects.
+        Value of percent of image values to blank while labeling image with
+        objects.
 
     :notes:
         Sometimes we need more features for classification. Currently it uses
@@ -50,9 +51,9 @@ class BasicImageObjects(object):
         _objects['dy'] = dy
         self.objects = _objects
         self._classify(image, labeled_array)
-        self._sort()
         # Fetch positions of only successfuly classified objects
         self.max_pos = self._find_positions(image, labeled_array)
+        self._sort()
 
     def _find_positions(self, image, labeled_array):
         return maximum_position(image, labels=labeled_array, index=self.label)
@@ -120,7 +121,10 @@ class BasicImageObjects(object):
 
     @max_pos.setter
     def max_pos(self, max_pos):
-        self.objects['max_pos'] = max_pos
+        try:
+            self.objects['max_pos'] = max_pos
+        except ValueError:
+            self.objects['max_pos'] = np.empty((0, 2))
 
     def __len__(self):
         return len(self.objects)
@@ -201,10 +205,10 @@ class TDMImageObjects(ImageObjects):
 
     :param d_dm: (optional)
         Value of DM spanned by object to count it as candidate for pulse
-        [cm^3/pc]. (default: ``150.``)
+        [cm^3/pc]. (default: ``100.``)
     :param dt: (optional)
         Value of t spanned by object to count it as candidate for pulse
-        [s]. (default: ``0.005``)
+        [s]. (default: ``0.003``)
 
     """
     def __init__(self, image, x_grid, y_grid, perc, d_dm=150., dt=0.005):
@@ -228,3 +232,73 @@ class TDMImageObjects(ImageObjects):
         """
         self.objects = self.objects[np.logical_and(self.d_y > self._d_dm,
                                                    self.d_x > self._dt)]
+
+
+class BatchedTDMIO(object):
+    """
+    Class that used to analyze image in batches.
+
+    :param image:
+        2D-numpy array of image to be analyzed.
+    :param x_grid:
+        Array-like of grid of coordinates in x-direction.
+    :param y_grid:
+        Array-like of grid of coordinates in y-direction.
+    :param perc:
+        Value of percent of image values to blank while labeling image with
+        objects.
+    :param d_dm: (optional)
+        Value of DM spanned by object to count it as candidate for pulse
+        [cm^3/pc]. (default: ``100.``)
+    :param dt: (optional)
+        Value of t spanned by object to count it as candidate for pulse
+        [s]. (default: ``0.003``)
+
+    """
+    def __init__(self, image, x_grid, y_grid, perc, d_dm=100., dt=0.003):
+        self.image = np.asarray(image)
+        self.x_grid = np.array(x_grid)
+        self.y_grid = np.array(y_grid)
+        self.perc = perc
+        self.d_dm = d_dm
+        self.dt = dt
+
+    def analyze_slice(self, x_slice):
+        """
+        Method that search for candidates in part of image that is specified by
+        slice.
+        :param x_slice:
+            Slice object that used to choose region of image to be analyzed in
+            x-direction.
+        :return:
+            2D-numpy arrays (# of candidates, 2,) with t[s], DM[cm^3/pc] values
+            for each candidate.
+
+        """
+        print "analyzing slice ", x_slice
+        tdmio = TDMImageObjects(self.image[:, x_slice], self.x_grid[x_slice],
+                                self.y_grid, self.perc, d_dm=self.d_dm,
+                                dt=self.dt)
+        return tdmio.xy
+
+    def run(self, batch_size=500000):
+        """
+
+        :param bathsize: (optional)
+            Size of image in x-direction, that will be searched for objects in
+            batches. If ``None`` then don't use batches and search the whole
+            image at once. (default: ``None``)
+        :return:
+            2D-numpy arrays (# of candidates, 2,) with t[s], DM[cm^3/pc] values
+            for each candidate.
+
+        """
+        length = self.image.shape[1]
+        n = length // batch_size + 1
+        ends = np.linspace(0, length, n)
+        slice_list = [slice(ends[i], ends[i + 1]) for i in range(n - 1)]
+
+        xy = map(self.analyze_slice, slice_list)
+        xy = np.vstack(xy)
+
+        return xy

@@ -1,5 +1,7 @@
 import numpy as np
 import pyfits as pf
+import pickle_method
+from multiprocessing import Pool
 from utils import vint, vround, delta_dm_max
 
 try:
@@ -90,7 +92,9 @@ class Frame(object):
     def add_values(self, array):
         """
         Add dyn. spectra in form of numpy array (#ch, #t,) to instance.
+
         :param array:
+            Array-like of dynamical spectra (#ch, #t,).
         """
         array = np.atleast_2d(array)
         assert self.values.shape == array.shape
@@ -111,7 +115,7 @@ class Frame(object):
             Dispersion measure to use in de-dispersion [cm^3 / pc].
         :param replace: (optional)
             Replace instance's frame values with de-dispersed ones? (default:
-            ``True``)
+            ``False``)
 
         """
         # MHz ** 2 * cm ** 3 * s / pc
@@ -132,11 +136,40 @@ class Frame(object):
             self.values = values[:, :]
         return values
 
+    # FIXME: at small ``dt`` it uses too small DM-step for my laptop RAM:)
+    def _de_disperse_freq_average(self, dm):
+        """
+        De-disperse frame using specified value of DM and average in frequency.
+
+        :param dm:
+            Dispersion measure to use in de-dispersion [cm^3 / pc].
+
+        :notes:
+            This method avoids creating ``(n_nu, n_t)`` arrays and must be
+            faster for data with big sizes. But it returns already frequency
+            averaged de-dispersed dyn. spectra.
+
+        """
+        # MHz ** 2 * cm ** 3 * s / pc
+        k = 1. / (2.410331 * 10 ** (-4))
+
+        # Calculate shift of time caused by de-dispersion for all channels
+        dt_all = k * dm * (1. / self.nu ** 2. - 1. / self.nu_0 ** 2.)
+        # Find what number of time bins corresponds to this shifts
+        nt_all = vint(vround(dt_all / self.dt))
+        # Container for summing de-dispersed frequency channels
+        values = np.zeros(self.n_t)
+        # Roll each axis (freq. channel) to each own number of time steps.
+        for i in range(self.n_nu):
+            values += np.roll(self.values[i], -nt_all[i])
+
+        return values / self.n_nu
+
     def average_in_time(self, values=None, plot=False):
         """
         Average frame in time.
 
-        :param values: ``(n_t, n_nu)`` (optional)
+        :param values: ``(n_nu, n_t)`` (optional)
             Numpy array of Frame values to average. If ``None`` then use current
             instance's values. (default: ``None``)
         :param plot: (optional)
@@ -144,7 +177,7 @@ class Frame(object):
             ``False``)
 
         :return:
-            Numpy array with length equals number of frequency channels.
+            Numpy array with length equals the number of frequency channels.
         """
         if values is None:
             values = self.values
@@ -180,7 +213,7 @@ class Frame(object):
     def plot(self, plot_indexes=True, savefig=None):
         if plt is not None:
             plt.figure()
-            plt.imshow(self.values, interpolation='none', aspect='auto')
+            plt.matshow(self.values, aspect='auto')
             plt.colorbar()
             if not plot_indexes:
                 raise NotImplementedError("Ticks haven't implemented yet")
@@ -254,7 +287,20 @@ class Frame(object):
                                      gp2.sample(self.nu) ** 2.)
                 self.values[:, i] += gp_samples
 
-    def grid_dedisperse(self, dm_min, dm_max, dm_delta=None, savefig=None):
+    def _step_dedisperse(self, dm):
+
+        """
+        Method that de-disperses frame using specified value of DM and frequency
+        averages the result.
+
+        :param dm:
+        :return:
+        """
+        values = self.de_disperse(dm)
+        return self.average_in_freq(values)
+
+    def grid_dedisperse(self, dm_min, dm_max, dm_delta=None, savefig=None,
+                        threads=1):
         """
         Method that de-disperse ``Frame`` instance with range values of
         dispersion measures and average them in frequency to obtain image in
@@ -271,8 +317,14 @@ class Frame(object):
             (default: ``None``)
         :param savefig: (optional)
             File to save picture.
+        :param threads: (optional)
+            Number of threads used for parallelization with ``mupltiprocessing``
+            module. If > 1 then it isn't used. (default: 1)
 
         """
+        pool = None
+        if threads > 1:
+            pool = Pool(threads)
         if dm_delta is None:
             # Find step for DM grid
             # Seems that ``5`` is good choice (1/200 of DM range)
@@ -282,14 +334,20 @@ class Frame(object):
 
         # Create grid of searched DM-values
         dm_grid = np.arange(dm_min, dm_max, dm_delta)
-        # Accumulator of de-dispersed frequency averaged frames
-        frames = list()
-        for dm in dm_grid:
-            frame = self.de_disperse(dm=dm, replace=False)
-            frame = self.average_in_freq(frame)
-            frames.append(frame)
 
+        if pool:
+            m = pool.map
+        else:
+            m = map
+
+        # Accumulator of de-dispersed frequency averaged frames
+        frames = list(m(self._de_disperse_freq_average, dm_grid.tolist()))
         frames = np.array(frames)
+
+        if pool:
+            # Close pool
+            pool.close()
+            pool.join()
 
         # Plot results
         if savefig is not None:
