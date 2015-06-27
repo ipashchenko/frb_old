@@ -213,7 +213,7 @@ class Frame(object):
     def plot(self, plot_indexes=True, savefig=None):
         if plt is not None:
             plt.figure()
-            plt.imshow(self.values, interpolation='none', aspect='auto')
+            plt.matshow(self.values, aspect='auto')
             plt.colorbar()
             if not plot_indexes:
                 raise NotImplementedError("Ticks haven't implemented yet")
@@ -389,26 +389,3 @@ class DataFrame(Frame):
             self.values += values[n_nu_discard / 2 : -n_nu_discard / 2, :]
         else:
             self.values += values
-
-
-if __name__ == '__main__':
-    import time
-    from objects import TDMImageObjects
-    # fname = '/home/ilya/code/frb/data/crab_600sec_64ch_1ms.txt'
-    fname = '/home/ilya/code/frb/data/out_crab_full_64x1'
-    frame = DataFrame(fname, 1684., 0., 16. / 64., 0.001)
-    # frame.add_pulse(10., 9.0, 0.001, dm=1000.)
-    # frame.add_pulse(20., 2.0, 0.003, dm=500.)
-    # frame.add_pulse(30., 1.0, 0.003, dm=500.)
-    # frame.add_pulse(40., 0.5, 0.003, dm=500.)
-    # frame.add_pulse(50., 0.25, 0.003, dm=500.)
-    # frame.add_pulse(60., 0.125, 0.003, dm=500.)
-    # frame.add_pulse(70., 0.0625, 0.003, dm=500.)
-    # frame.add_pulse(80., 0.03125, 0.003, dm=500.)
-    t0 = time.time()
-    dm_grid, frames_t_dedm = frame.grid_dedisperse(0, 1000., threads=4)
-    t1 = time.time()
-    print t1 - t0
-    objects = TDMImageObjects(frames_t_dedm, frame.t, dm_grid, 99.95, d_dm=100.,
-                              dt=0.003)
-    # objects.save_txt("saved_objects.txt", "x", "y")
