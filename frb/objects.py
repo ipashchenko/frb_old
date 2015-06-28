@@ -1,5 +1,6 @@
 import numpy as np
-from scipy.ndimage.measurements import maximum_position, label, find_objects
+from scipy.ndimage.measurements import (maximum_position, label, find_objects,
+    mean, minimum, sum, variance)
 from scipy.ndimage.morphology import generate_binary_structure
 
 
@@ -301,3 +302,18 @@ class BatchedTDMIO(object):
         xy = np.vstack(xy)
 
         return xy
+
+
+if __name__ == '__main__':
+    from frames import DataFrame
+    fname = '/home/ilya/code/frb/data/90_sec_wb_raes08a_128ch'
+    frame = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
+    frame.add_pulse(10., 0.125, 0.003, dm=1000.)
+    frame.add_pulse(20., 0.125, 0.003, dm=900.)
+    frame.add_pulse(30., 0.125, 0.003, dm=800.)
+    frame.add_pulse(40., 0.125, 0.003, dm=700.)
+    frame.add_pulse(50., 0.125, 0.003, dm=600.)
+    frame.add_pulse(60., 0.125, 0.003, dm=500.)
+    frame.add_pulse(70., 0.125, 0.003, dm=400.)
+    frame.add_pulse(80., 0.125, 0.003, dm=300.)
+    dm_grid, frames_t_dedm = frame.grid_dedisperse(0, 1000., threads=4)
