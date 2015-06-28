@@ -73,15 +73,17 @@ if __name__ == '__main__':
     dm_min = args.dm_min
     dm_max = args.dm_max
 
+    print "De-dispersion started"
     dm_grid, frames_t_dedm = frame.grid_dedisperse(dm_min, dm_max,
                                                    savefig=args.savefig_dedm,
                                                    threads=args.threads)
-    btdmio = BatchedTDMIO(frames_t_dedm, frame.t, dm_grid, perc=args.perc,
-                          d_dm=args.d_dm, dt=args.d_t)
-    candidates = btdmio.run(batch_size=args.batchsize)
-    print "Candidates: t [s], DM [cm^3/pc]:"
-    print "==============================="
-    print candidates
-    print "==============================="
-    if args.save_result:
-        np.savetxt(args.save_result, candidates)
+    print "De-dispersion done"
+    # btdmio = BatchedTDMIO(frames_t_dedm, frame.t, dm_grid, perc=args.perc,
+    #                       d_dm=args.d_dm, dt=args.d_t)
+    # candidates = btdmio.run(batch_size=args.batchsize)
+    # print "Candidates: t [s], DM [cm^3/pc]:"
+    # print "==============================="
+    # print candidates
+    # print "==============================="
+    # if args.save_result:
+    #     np.savetxt(args.save_result, candidates)
