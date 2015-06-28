@@ -78,12 +78,14 @@ if __name__ == '__main__':
                                                    savefig=args.savefig_dedm,
                                                    threads=args.threads)
     print "De-dispersion done"
-    # btdmio = BatchedTDMIO(frames_t_dedm, frame.t, dm_grid, perc=args.perc,
-    #                       d_dm=args.d_dm, dt=args.d_t)
-    # candidates = btdmio.run(batch_size=args.batchsize)
-    # print "Candidates: t [s], DM [cm^3/pc]:"
-    # print "==============================="
-    # print candidates
-    # print "==============================="
-    # if args.save_result:
-    #     np.savetxt(args.save_result, candidates)
+    btdmio = BatchedTDMIO(frames_t_dedm, frame.t, dm_grid, perc=args.perc,
+                          d_dm=args.d_dm, dt=args.d_t)
+    print "Searching in (t, DM)-space started"
+    candidates = btdmio.run(batch_size=args.batchsize)
+    print "Searching in (t, DM)-space done"
+    print "Candidates: t [s], DM [cm^3/pc]:"
+    print "==============================="
+    print candidates
+    print "==============================="
+    if args.save_result:
+        np.savetxt(args.save_result, candidates)
