@@ -2,6 +2,7 @@ import numpy as np
 import pyfits as pf
 import pickle_method
 from multiprocessing import Pool
+from collections import OrderedDict
 from utils import vint, vround, delta_dm_max
 
 try:
@@ -299,22 +300,32 @@ class Frame(object):
         values = self.de_disperse(dm)
         return self.average_in_freq(values)
 
-    def grid_dedisperse(self, dm_min, dm_max, dm_delta=None, savefig=None,
-                        threads=1):
+    def create_dm_grid(self, dm_min, dm_max, dm_delta=None):
+        """
+        Method that create DM-grid for current frame.
+        :param dm_min:
+        :param dm_max:
+        :param dm_delta:
+        :return:
+        """
+        if dm_delta is None:
+            # Find step for DM grid
+            # Seems that ``5`` is good choice (1/200 of DM range)
+            dm_delta = 5 * delta_dm_max(self.nu_0,
+                                        self.nu_0 - self.n_nu * self.dnu,
+                                        self.dt)
+
+        # Create grid of searched DM-values
+        return np.arange(dm_min, dm_max, dm_delta)
+
+    def grid_dedisperse(self, dm_grid, savefig=None, threads=1):
         """
         Method that de-disperse ``Frame`` instance with range values of
         dispersion measures and average them in frequency to obtain image in
         (t, DM)-plane.
 
-        :param dm_min:
-            Value of minimal DM to de-disperse [cm^3/pc].
-        :param dm_max:
-            Value of maximum DM to de-disperse [cm^3/pc].
-        :param dm_delta: (optional)
-            Delta of DM for grid [cm^3/pc]. If ``None`` then choose one that
-            corresponds to time shift equals to time resolution for frequency
-            bandwidth. Actually used value is 5 times larger.
-            (default: ``None``)
+        :param dm_grid:
+            Array-like of value of DM on which to de-disperse [cm^3/pc].
         :param savefig: (optional)
             File to save picture.
         :param threads: (optional)
@@ -325,15 +336,6 @@ class Frame(object):
         pool = None
         if threads > 1:
             pool = Pool(threads)
-        if dm_delta is None:
-            # Find step for DM grid
-            # Seems that ``5`` is good choice (1/200 of DM range)
-            dm_delta = 5 * delta_dm_max(self.nu_0,
-                                        self.nu_0 - self.n_nu * self.dnu,
-                                        self.dt)
-
-        # Create grid of searched DM-values
-        dm_grid = np.arange(dm_min, dm_max, dm_delta)
 
         if pool:
             m = pool.map
@@ -362,8 +364,42 @@ class Frame(object):
             plt.show()
             plt.close()
 
-        return dm_grid, frames
+        return frames
 
+
+class CompositeFrame(object):
+    """
+    Class that represents Frame partitioned in some number of frequency bands.
+    """
+    def __init__(self, n_nu_band, n_t, nu_0_bands, t_0, dnu, dt):
+        self.nu_0_bands = sorted(nu_0_bands)
+        self.n_nu_band = n_nu_band
+        self.n_t = n_t
+        self.t_0 = t_0
+        self.dnu = dnu
+        self.dt = dt
+        self.frames = OrderedDict()
+        for nu_0 in self.nu_0_bands:
+            self.frames.update({nu_0: Frame(n_nu_band, n_t, nu_0, t_0, dnu,
+                                            dt)})
+
+    def grid_dedisperse(self, dm_min, dm_max, dm_delta=None, threads=1):
+        # Find grid of DM-value for combined frame
+        if dm_delta is None:
+            # Find step for DM grid
+            # Seems that ``5`` is good choice (1/200 of DM range)
+            nu_max = max(self.nu_0_bands)
+            nu_min = nu_max - len(self.nu_0_bands) * self.n_nu_band * self.dnu
+            dm_delta = 5 * delta_dm_max(nu_max, nu_min, self.dt)
+        dm_grid = np.arange(dm_min, dm_max, dm_delta)
+
+        # Prepare container of (t, DM)-plane values
+        frame_t_dedm = np.zeros((len(dm_grid), self.n_t,), dtype=float)
+        # Create grid of searched DM-values
+        for frame in self.frames.values():
+            frame_t_dedm += frame.grid_dedisperse(dm_grid, savefig=None,
+                                                  threads=threads)
+        return frame_t_dedm
 
 # TODO: should i use just one class ``Frame`` but different io-methods?
 # TODO: Create subclass for FITS input.
