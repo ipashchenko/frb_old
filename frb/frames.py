@@ -1,7 +1,7 @@
+import multiprocessing
+import ctypes
 import numpy as np
-import pyfits as pf
 import pickle_method
-from multiprocessing import Pool
 from utils import vint, vround, delta_dm_max
 
 try:
@@ -39,7 +39,11 @@ class Frame(object):
         self.n_t = n_t
         self.nu_0 = nu_0
         self.t_0 = t_0
-        self.values = np.zeros(n_nu * n_t, dtype=float).reshape((n_nu, n_t,))
+        # Using shared array (http://stackoverflow.com/questions/5549190 by pv.)
+        shared_array_base = multiprocessing.Array(ctypes.c_float, n_nu * n_t)
+        self.values = np.ctypeslib.as_array(shared_array_base.get_obj()).reshape((n_nu,
+                                                                                  n_t,))
+
         nu = np.arange(n_nu)
         t = np.arange(n_t)
         self.nu = (nu_0 - nu * dnu)[::-1]
@@ -300,7 +304,7 @@ class Frame(object):
         """
         pool = None
         if threads > 1:
-            pool = Pool(threads, maxtasksperchild=1000)
+            pool = multiprocessing.Pool(threads, maxtasksperchild=1000)
 
         if pool:
             m = pool.map
