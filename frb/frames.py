@@ -1,3 +1,4 @@
+import gc
 import numpy as np
 import pyfits as pf
 import pickle_method
@@ -14,48 +15,6 @@ try:
     import matplotlib.pyplot as plt
 except ImportError:
     plt = None
-
-
-def create_frame_from_txt(fname, nu_0, t_0, dnu, dt, n_nu_discard=0):
-    """
-    Function that creates ``Frame`` instance from txt-file where each row
-    represent dynamical spectra and number of row = number of times at which
-    spectra are measured.
-    :param fname:
-        Txt-file name.
-    :param nu_0:
-        Frequency of highest frequency channel [MHz].
-    :param t_0:
-        Time of first measurement.
-    :param dnu:
-    :param dt:
-    :param n_nu_discard:
-    :return:
-    """
-    # Assert even number of channels to discard
-    assert not int(n_nu_discard) % 2
-
-    values = np.loadtxt(fname, unpack=True)
-    n_nu, n_t = np.shape(values)
-    frame = Frame(n_nu - n_nu_discard, n_t, nu_0 - n_nu_discard * dnu / 2.,
-                  t_0, dnu, dt)
-    if n_nu_discard:
-        frame.values += values[n_nu_discard / 2 : -n_nu_discard / 2, :]
-    else:
-        frame.values += values
-    return frame
-
-
-def create_frame_from_fits(fname, n_nu_discard=0):
-    """
-    Function that creates ``Frame`` instance from FITS-file.
-    :param fname:
-    :param n_nu_discard:
-    :return:
-    """
-    # Assert even number of channels to discard
-    assert not int(n_nu_discard) % 2
-    hdulist = pf.open(fname)
 
 
 class Frame(object):
@@ -335,7 +294,7 @@ class Frame(object):
         """
         pool = None
         if threads > 1:
-            pool = Pool(threads)
+            pool = Pool(threads, maxtasksperchild=100)
 
         if pool:
             m = pool.map
@@ -370,10 +329,35 @@ class Frame(object):
 class CompositeFrame(object):
     """
     Class that represents Frame partitioned in some number of frequency bands.
+
+    :param n_bands:
+        Number of subbands.
+    :param n_nu_band:
+        Number of frequency channels in each subband.
+    :param n_t:
+        Number of time steps.
+    :param nu_0_bands:
+        Frequency of the highest frequency channel or iterable of frequencies of
+        the highest frequency channels in each subband. If former then for each
+        of ``n_nu_band`` subband the highest frequency is determined from simple
+        partition of full bandwidth (that is ``dnu * n_nu_band``) in
+        ``n_nu_band`` parts. [MHz].
+    :param t0:
+        Time of first measurement.
+    :param dnu:
+        Width of single spectral channel [MHz].
+    :param dt:
+        Time step [s].
+
     """
-    def __init__(self, n_nu_band, n_t, nu_0_bands, t_0, dnu, dt):
-        self.nu_0_bands = sorted(nu_0_bands)
+    def __init__(self, n_bands, n_nu_band, n_t, nu_0_bands, t_0, dnu, dt):
+        try:
+            self.nu_0_bands = sorted(nu_0_bands)
+        except TypeError:
+            self.nu_0_bands = [nu_0_bands - i * n_nu_band for i in
+                               range(n_bands)]
         self.n_nu_band = n_nu_band
+        self.n_bands = n_bands
         self.n_t = n_t
         self.t_0 = t_0
         self.dnu = dnu
@@ -383,23 +367,38 @@ class CompositeFrame(object):
             self.frames.update({nu_0: Frame(n_nu_band, n_t, nu_0, t_0, dnu,
                                             dt)})
 
-    def grid_dedisperse(self, dm_min, dm_max, dm_delta=None, threads=1):
-        # Find grid of DM-value for combined frame
+    def create_dm_grid(self, dm_min, dm_max, dm_delta=None):
+        """
+        Method that create DM-grid for current frame.
+        :param dm_min:
+        :param dm_max:
+        :param dm_delta:
+        :return:
+        """
         if dm_delta is None:
             # Find step for DM grid
             # Seems that ``5`` is good choice (1/200 of DM range)
             nu_max = max(self.nu_0_bands)
-            nu_min = nu_max - len(self.nu_0_bands) * self.n_nu_band * self.dnu
+            nu_min = min(self.nu_0_bands) - self.n_nu_band * self.dnu
             dm_delta = 5 * delta_dm_max(nu_max, nu_min, self.dt)
-        dm_grid = np.arange(dm_min, dm_max, dm_delta)
+
+        # Create grid of searched DM-values
+        return np.arange(dm_min, dm_max, dm_delta)
+
+    def grid_dedisperse(self, dm_min, dm_max, dm_delta=None, threads=1):
+        # Find grid of DM-value for combined frame
+        dm_grid = self.create_dm_grid(dm_min, dm_max, dm_delta=dm_delta)
 
         # Prepare container of (t, DM)-plane values
         frame_t_dedm = np.zeros((len(dm_grid), self.n_t,), dtype=float)
         # Create grid of searched DM-values
-        for frame in self.frames.values():
+        for nu_0, frame in self.frames.items():
+            print "De-dispersing frame with nu_0 = ", nu_0
             frame_t_dedm += frame.grid_dedisperse(dm_grid, savefig=None,
                                                   threads=threads)
-        return frame_t_dedm
+            gc.collect()
+        return frame_t_dedm / self.n_bands
+
 
 # TODO: should i use just one class ``Frame`` but different io-methods?
 # TODO: Create subclass for FITS input.
@@ -422,6 +421,38 @@ class DataFrame(Frame):
                                         nu_0 - n_nu_discard * dnu / 2., t_0,
                                         dnu, dt)
         if n_nu_discard:
-            self.values += values[n_nu_discard / 2 : -n_nu_discard / 2, :]
+            self.add_values(values[n_nu_discard / 2 : -n_nu_discard / 2, :])
+            # self.values += values[n_nu_discard / 2 : -n_nu_discard / 2, :]
         else:
-            self.values += values
+            self.add_values(values)
+            # self.values += values
+
+
+class CompositeDataFrame(CompositeFrame):
+    def __init__(self, fname, nu_0, t_0, dnu, dt, n_bands=1):
+        values = np.loadtxt(fname, unpack=True)
+        n_nu, n_t = np.shape(values)
+        assert n_nu % n_bands == 0
+        n_nu_bands = n_nu / n_bands
+        super(CompositeDataFrame, self).__init__(n_bands, n_nu_bands, n_t,
+                                                 nu_0, t_0, dnu, dt)
+        for i, nu_0 in enumerate(self.nu_0_bands):
+            self.frames[nu_0].add_values(values[i * n_nu_bands:
+                                                (i + 1) * n_nu_bands, :])
+
+
+if __name__ == '__main__':
+    import time
+    fname = '/home/ilya/code/frb/data/out_crab_full_64x1'
+    # cdframe = CompositeDataFrame(fname, 1684., 0., 16. / 64., 0.001, n_bands=4)
+    # t0 = time.time()
+    # frames_t_dedm1 = cdframe.grid_dedisperse(0, 1000., threads=4)
+    # t1 = time.time()
+    # print " Composite de-disperse took ", t1 - t0
+
+    frame = DataFrame(fname, 1684., 0., 16. / 64., 0.001)
+    dm_grid = frame.create_dm_grid(0, 1000.)
+    t0 = time.time()
+    frames_t_dedm2 = frame.grid_dedisperse(dm_grid, threads=4)
+    t1 = time.time()
+    print " Ordinary de-disperse took ", t1 - t0
