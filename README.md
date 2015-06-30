@@ -34,7 +34,7 @@ Parameters:
     candidates in batches. Default: 100000
 
 - ``d_t`` - width of feature [s] in (t, DM)-space along t-axis to treat it as
-    candidate. Default: 0.005
+    candidate. Default: 0.003
 
 - ``d_dm`` - width of feature [cm^3/pc] in (t, DM)-space along DM-axis to treat
     it as candidate. Default: 100.
