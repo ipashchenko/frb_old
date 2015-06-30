@@ -299,6 +299,32 @@ class Frame(object):
         values = self.de_disperse(dm)
         return self.average_in_freq(values)
 
+    def create_dm_grid(self, dm_min, dm_max, dm_delta=None):
+        """
+        Method that create DM-grid for current frame.
+        :param dm_min:
+            Minimal value [cm^3 /pc].
+        :param dm_max:
+            Maximum value [cm^3 /pc].
+        :param dm_delta: (optional)
+            Delta of DM for grid [cm^3/pc]. If ``None`` then choose one that
+            corresponds to time shift equals to time resolution for frequency
+            bandwidth. Actually used value is 5 times larger.
+            (default: ``None``)
+        :return:
+            Numpy array of DM values [cm^3 / pc]
+        """
+        if dm_delta is None:
+            nu_max = self.nu_0
+            # Note ``-1``
+            nu_min = self.nu_0 - (self.n_nu - 1) * self.dnu
+            # Find step for DM grid
+            # Seems that ``5`` is good choice (1/200 of DM range)
+            dm_delta = 5 * delta_dm_max(nu_max, nu_min, self.dt)
+
+        # Create grid of searched DM-values
+        return np.arange(dm_min, dm_max, dm_delta)
+
     def grid_dedisperse(self, dm_min, dm_max, dm_delta=None, savefig=None,
                         threads=1):
         """
@@ -324,16 +350,10 @@ class Frame(object):
         """
         pool = None
         if threads > 1:
-            pool = Pool(threads)
-        if dm_delta is None:
-            # Find step for DM grid
-            # Seems that ``5`` is good choice (1/200 of DM range)
-            dm_delta = 5 * delta_dm_max(self.nu_0,
-                                        self.nu_0 - self.n_nu * self.dnu,
-                                        self.dt)
+            pool = Pool(threads, maxtasksperchild=1000)
 
-        # Create grid of searched DM-values
-        dm_grid = np.arange(dm_min, dm_max, dm_delta)
+        # Find grid of DM-value for combined frame
+        dm_grid = self.create_dm_grid(dm_min, dm_max, dm_delta=dm_delta)
 
         if pool:
             m = pool.map
