@@ -275,7 +275,6 @@ class BatchedTDMIO(object):
             for each candidate.
 
         """
-        print "analyzing slice ", x_slice
         tdmio = TDMImageObjects(self.image[:, x_slice], self.x_grid[x_slice],
                                 self.y_grid, self.perc, d_dm=self.d_dm,
                                 dt=self.dt)
