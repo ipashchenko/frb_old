@@ -76,8 +76,10 @@ tunable parameters:
     ``image`` and ``labelled array`` as first two positional arguments.
 
 Current implementation allows parallelization of grid de-dispersion step using
-``multiprocessing`` module. It gives 4x-speed up for 630000 time counts x 128 frequency
-channels data with ``threads=4`` and 1.5x-speed up for ``nthreads=2``.
+``multiprocessing`` module.
+
+Using text files requires additional RAM that can be a problem for large data
+sets.
 
 
 License
