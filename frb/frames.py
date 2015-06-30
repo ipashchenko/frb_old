@@ -347,7 +347,10 @@ class DataFrame(Frame):
         # Assert even number of channels to discard
         assert not int(n_nu_discard) % 2
 
-        values = np.loadtxt(fname, unpack=True)
+        try:
+            values = np.load(fname).T
+        except IOError:
+            values = np.loadtxt(fname, unpack=True)
         n_nu, n_t = np.shape(values)
         super(DataFrame, self).__init__(n_nu - n_nu_discard, n_t,
                                         nu_0 - n_nu_discard * dnu / 2., t_0,

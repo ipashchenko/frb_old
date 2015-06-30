@@ -11,14 +11,16 @@ numpy, scipy, matplotlib.pyplot (for plots)
 
 ## Searching for pulses in txt-format data file:
 
-``user@host:~$ python search_file.txt data.txt -nu_max NU_MAX -dnu DNU -dt DT
+``user@host:~$ python search_file.py data.dat -nu_max NU_MAX -dnu DNU -dt DT
 -dm_min DM_MIN -dm_max DM_MAX [-batchsize BATCHSIZE] [-d_t D_T] [-d_dm D_DM] [-perc PERC] [-savefig_dyn
 fig.png] [-savefig_dedm fig.png] [-threads THREADS]``
 
 Parameters:
 
-- ``data.txt`` - text file with time sequence of dynamical spectra. # of
-    columns = # of frequency channels and # of rows = # of time measurements.
+- ``data.dat`` - binary or text file with time sequence of dynamical spectra.
+    If text file => # of columns = # of frequency channels and # of rows = # of
+    time measurements. If binary then ``np.shape(np.load('data.dat'))`` = (# of
+    freq. channels, # of time measurements,)
 
 - ``-nu_max`` - frequency of highest frequency channel [MHz].
 
