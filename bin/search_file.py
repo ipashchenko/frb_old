@@ -72,11 +72,11 @@ if __name__ == '__main__':
     frame = DataFrame(args.fname, args.nu_max, args.t0, args.dnu, args.dt)
     dm_min = args.dm_min
     dm_max = args.dm_max
+    dm_grid = frame.create_dm_grid(dm_min, dm_max)
 
     print "De-dispersion started"
-    dm_grid, frames_t_dedm = frame.grid_dedisperse(dm_min, dm_max,
-                                                   savefig=args.savefig_dedm,
-                                                   threads=args.threads)
+    frames_t_dedm = frame.grid_dedisperse(dm_grid, savefig=args.savefig_dedm,
+                                          threads=args.threads)
     print "De-dispersion done"
     btdmio = BatchedTDMIO(frames_t_dedm, frame.t, dm_grid, perc=args.perc,
                           d_dm=args.d_dm, dt=args.d_t)
