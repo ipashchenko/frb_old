@@ -15,48 +15,6 @@ except ImportError:
     plt = None
 
 
-def create_frame_from_txt(fname, nu_0, t_0, dnu, dt, n_nu_discard=0):
-    """
-    Function that creates ``Frame`` instance from txt-file where each row
-    represent dynamical spectra and number of row = number of times at which
-    spectra are measured.
-    :param fname:
-        Txt-file name.
-    :param nu_0:
-        Frequency of highest frequency channel [MHz].
-    :param t_0:
-        Time of first measurement.
-    :param dnu:
-    :param dt:
-    :param n_nu_discard:
-    :return:
-    """
-    # Assert even number of channels to discard
-    assert not int(n_nu_discard) % 2
-
-    values = np.loadtxt(fname, unpack=True)
-    n_nu, n_t = np.shape(values)
-    frame = Frame(n_nu - n_nu_discard, n_t, nu_0 - n_nu_discard * dnu / 2.,
-                  t_0, dnu, dt)
-    if n_nu_discard:
-        frame.values += values[n_nu_discard / 2 : -n_nu_discard / 2, :]
-    else:
-        frame.values += values
-    return frame
-
-
-def create_frame_from_fits(fname, n_nu_discard=0):
-    """
-    Function that creates ``Frame`` instance from FITS-file.
-    :param fname:
-    :param n_nu_discard:
-    :return:
-    """
-    # Assert even number of channels to discard
-    assert not int(n_nu_discard) % 2
-    hdulist = pf.open(fname)
-
-
 class Frame(object):
     """
     Basic class that represents a set of regulary spaced frequency channels with
@@ -325,35 +283,24 @@ class Frame(object):
         # Create grid of searched DM-values
         return np.arange(dm_min, dm_max, dm_delta)
 
-    def grid_dedisperse(self, dm_min, dm_max, dm_delta=None, savefig=None,
-                        threads=1):
+    def grid_dedisperse(self, dm_grid, savefig=None, threads=1):
         """
         Method that de-disperse ``Frame`` instance with range values of
         dispersion measures and average them in frequency to obtain image in
         (t, DM)-plane.
 
-        :param dm_min:
-            Value of minimal DM to de-disperse [cm^3/pc].
-        :param dm_max:
-            Value of maximum DM to de-disperse [cm^3/pc].
-        :param dm_delta: (optional)
-            Delta of DM for grid [cm^3/pc]. If ``None`` then choose one that
-            corresponds to time shift equals to time resolution for frequency
-            bandwidth. Actually used value is 5 times larger.
-            (default: ``None``)
+        :param dm_grid:
+            Array-like of value of DM on which to de-disperse [cm^3/pc].
         :param savefig: (optional)
             File to save picture.
         :param threads: (optional)
-            Number of threads used for parallelization with ``mupltiprocessing``
+            Number of threads used for parallelization with ``multiprocessing``
             module. If > 1 then it isn't used. (default: 1)
 
         """
         pool = None
         if threads > 1:
             pool = Pool(threads, maxtasksperchild=1000)
-
-        # Find grid of DM-value for combined frame
-        dm_grid = self.create_dm_grid(dm_min, dm_max, dm_delta=dm_delta)
 
         if pool:
             m = pool.map
@@ -382,7 +329,7 @@ class Frame(object):
             plt.show()
             plt.close()
 
-        return dm_grid, frames
+        return frames
 
 
 # TODO: should i use just one class ``Frame`` but different io-methods?
