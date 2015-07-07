@@ -3,50 +3,213 @@ from scipy.ndimage.measurements import (maximum_position, label, find_objects,
                                         mean, minimum, sum, variance, maximum,
                                         median, center_of_mass)
 from scipy.ndimage.morphology import generate_binary_structure
+from skimage.measure import regionprops
+from sklearn.svm import SVC
+from sklearn.preprocessing import scale
 
 
-def ml(image, t, dm, perc):
-    threshold = np.percentile(image.ravel(), perc)
-    a = image.copy()
-    # Keep only tail of image values distribution with signal
-    a[a < threshold] = 0
-    s = generate_binary_structure(2, 2)
-    # Label image
-    labeled_array, num_features = label(a, structure=s)
-    # Find objects
-    objects = find_objects(labeled_array)
-    labels = np.arange(num_features) + 1
-    # Calculate features of objects
-    max_pos = maximum_position(image, labels=labeled_array, index=labels)
-    means = mean(image, labels=labeled_array, index=labels)
-    mins = minimum(image, labels=labeled_array, index=labels)
-    maxs = maximum(image, labels=labeled_array, index=labels)
-    meds = median(image, labels=labeled_array, index=labels)
-    cmass = center_of_mass(image, labels=labeled_array, index=labels)
-    sums = sum(image, labels=labeled_array, index=labels)
-    vars = variance(image, labels=labeled_array, index=labels)
-    dx = [int(obj[1].stop - obj[1].start) for obj in objects]
-    dy = [int(obj[0].stop - obj[0].start) for obj in objects]
-    return num_features, objects, labeled_array, dx, dy, means, mins, maxs,\
-           meds, sums, vars, cmass, max_pos
+class PulseClassifier(object):
+
+    @staticmethod
+    def max_pos(prop, image):
+        subimage = image[prop.bbox[0]: prop.bbox[2],
+                   prop.bbox[1]: prop.bbox[3]]
+        indx = np.unravel_index(subimage.argmax(), subimage.shape)
+        return (prop.bbox[0] + indx[0], prop.bbox[1] + indx[1]), prop.bbox[2] - prop.bbox[0], prop.bbox[3] - prop.bbox[1]
+
+    def __init__(self, clf=SVC, *args, **kwargs):
+        self._clf = clf(args, kwargs)
+        self._clf_args = args
+        self._clf_kwargs = kwargs
+
+    def train(self, frame, t0, amp, width, dm, perc, dm_min=0., dm_max=1000.,
+              dm_delta=None, d_t=0.005, d_dm=200.):
+        """
+        Create train data from instance of ``Frame`` subclass.
+        :param frame:
+        :param t:
+        :param amp:
+        :param width:
+        :param dm:
+        :return:
+        """
+        for pars in zip(t0, amp, width, dm):
+            print "Adding pulse wih t0, amp, width = ", pars
+            frame.add_pulse(*pars)
+        dm_grid = frame.create_dm_grid(dm_min, dm_max, dm_delta=dm_delta)
+        if not dm_delta:
+            dm_delta = dm_grid[1] - dm_grid[0]
+        tdm_image = frame.grid_dedisperse(dm_grid, threads=4)
+        threshold = np.percentile(tdm_image.ravel(), perc)
+        tdm_image[tdm_image < threshold] = 0
+        s = generate_binary_structure(2, 2)
+        label_image, num_features = label(tdm_image, structure=s)
+        props = regionprops(label_image, intensity_image=tdm_image)
+        # Label image
+        print "Found ", len(props), " of regions"
+
+        # Find inserted pulses
+        trues = list()
+        for (t0_, dm_,) in zip(t0, dm):
+            print "Finding injected pulse ", t0_, dm_
+            true_ = list()
+            for prop in props:
+                max_pos, _d_dt, _d_dm  = PulseClassifier.max_pos(prop, tdm_image)
+                dm__, t_ = max_pos
+                t_ *= frame.dt
+                dm__ *= dm_delta
+                prop.t = t_
+                prop.dm = dm__
+                _d_t_ = abs(t_ - t0_)
+                _d_dm_ = abs(dm__ - dm_)
+                if (_d_t_ < d_t and  _d_dm_ < d_dm):
+                    print "Found ", t_, dm__, "area : ", prop.area
+                    print "index in props ", props.index(prop)
+                    true_.append(prop)
+            # Keep only object with highest area if more then one
+            trues.append(sorted(true_, key=lambda x: x.area, reverse=True)[0])
+
+        # Create arrays with features
+        X = list()
+        y = list()
+        for prop in props:
+            X.append([prop.area, _d_dt, _d_dm, prop.eccentricity, prop.extent,
+                      prop.filled_area, prop.major_axis_length,
+                      prop.max_intensity, prop.min_intensity,
+                      prop.mean_intensity, prop.orientation, prop.perimeter,
+                     prop.solidity])
+            if prop in trues:
+                y.append(1)
+            else:
+                y.append(0)
+
+        X_scaled = scale(X)
+        # Train classifier
+        self._clf.fit(X_scaled, y)
+
+    def classify(self, frame, perc, dm_min=0., dm_max=1000., dm_delta=None):
+        dm_grid = frame.create_dm_grid(dm_min, dm_max, dm_delta=dm_delta)
+        if not dm_delta:
+            dm_delta = dm_grid[1] - dm_grid[0]
+        tdm_image = frame.grid_dedisperse(dm_grid, threads=4)
+        threshold = np.percentile(tdm_image.ravel(), perc)
+        tdm_image[tdm_image < threshold] = 0
+        s = generate_binary_structure(2, 2)
+        label_image, num_features = label(tdm_image, structure=s)
+        props = regionprops(label_image, intensity_image=tdm_image)
+        # Label image
+        print "Found ", len(props), " of regions"
+
+        # Create arrays with features
+        X = list()
+        y = list()
+        for prop in props:
+            max_pos, _d_dt, _d_dm  = PulseClassifier.max_pos(prop, tdm_image)
+            dm__, t_ = max_pos
+            t_ *= frame.dt
+            dm__ *= dm_delta
+            prop.t = t_
+            prop.dm = dm__
+            X.append([prop.area, _d_dt, _d_dm, prop.eccentricity,
+                      prop.extent, prop.filled_area, prop.major_axis_length,
+                      prop.max_intensity, prop.min_intensity,
+                      prop.mean_intensity, prop.orientation, prop.perimeter,
+                      prop.solidity])
+
+        X_scaled = scale(X)
+        y = self._clf.fit(X_scaled)
+        indxs = np.where(y == 1)[0]
+        result = list()
+        for indx in indxs:
+            result.append(props[indx])
+
+        return result
 
 
 if __name__ == '__main__':
-    import time
     from frames import DataFrame
-    fname = '/home/ilya/code/frb/data/crab_600sec_64ch_1ms.npy'
-    frame = DataFrame(fname, 1684., 0., 16. / 64., 0.001)
-    # frame.add_pulse(10., 9.0, 0.001, dm=1000.)
-    # frame.add_pulse(20., 2.0, 0.003, dm=500.)
-    # frame.add_pulse(30., 1.0, 0.003, dm=500.)
-    # frame.add_pulse(40., 0.5, 0.003, dm=500.)
-    # frame.add_pulse(50., 0.25, 0.003, dm=500.)
-    # frame.add_pulse(60., 0.125, 0.003, dm=500.)
-    # frame.add_pulse(70., 0.0625, 0.003, dm=500.)
-    # frame.add_pulse(80., 0.03125, 0.003, dm=500.)
-    t0 = time.time()
-    dm_grid = frame.create_dm_grid(0., 1000.)
-    frames_t_dedm = frame.grid_dedisperse(dm_grid, threads=4)
-    num_features, objects, labeled_array, dx, dy, means, mins, maxs, \
-           meds, sums, vars, cmass, max_pos = ml(frames_t_dedm, frame.t,
-                                                 dm_grid, 99.75)
+    fname = '/home/ilya/code/frb/data/630_sec_wb_raes08a_128ch.npy'
+    frame = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
+    t0 = range(10, 600, 25)
+    amp = np.random.uniform(2., 3., size=len(t0))
+    width = np.random.uniform(0.0001, 0.01, size=len(t0))
+    dm = np.random.uniform(200., 900., size=len(t0))
+
+    dm_min=0
+    dm_max=1000.
+    dm_delta = None
+    perc = 99.85
+    d_t = 0.002
+    d_dm = 100
+
+
+    for pars in zip(t0, amp, width, dm):
+        print "Adding pulse wih t0, amp, width = ", pars
+        frame.add_pulse(*pars)
+    dm_grid = frame.create_dm_grid(dm_min, dm_max, dm_delta=dm_delta)
+    if not dm_delta:
+        dm_delta = dm_grid[1] - dm_grid[0]
+    tdm_image = frame.grid_dedisperse(dm_grid, threads=4)
+    threshold = np.percentile(tdm_image.ravel(), perc)
+    tdm_image[tdm_image < threshold] = 0
+    s = generate_binary_structure(2, 2)
+    label_image, num_features = label(tdm_image, structure=s)
+    props = regionprops(label_image, intensity_image=tdm_image)
+    # Label image
+    print "Found ", len(props), " of regions"
+
+    # Find inserted pulses
+    trues = list()
+    for (t0_, dm_,) in zip(t0, dm):
+        print "Finding injected pulse ", t0_, dm_
+        true_ = list()
+        for prop in props:
+            max_pos, _d_dt, _d_dm = PulseClassifier.max_pos(prop, tdm_image)
+            dm__, t_ = max_pos
+            t_ *= frame.dt
+            dm__ *= dm_delta
+            prop.t0 = t_
+            prop.dm0 = dm__
+            prop.dt = _d_dt
+            prop.d_dm = _d_dm
+            _d_t_ = abs(t_ - t0_)
+            _d_dm_ = abs(dm__ - dm_)
+            if (_d_t_ < d_t and  _d_dm_ < d_dm):
+                print "Found ", t_, dm__, "area : ", prop.area
+                print "index in props ", props.index(prop)
+                true_.append(prop)
+        # Keep only object with highest area if more then one
+        print true_
+        trues.append(sorted(true_, key=lambda x: x.area, reverse=True)[0])
+
+    # Create arrays with features
+    X = list()
+    y = list()
+    for prop in props:
+        X.append([prop.area, prop.dt, prop.d_dm, prop.eccentricity, prop.extent,
+                  prop.filled_area, prop.major_axis_length,
+                  prop.max_intensity, prop.min_intensity,
+                  prop.mean_intensity, prop.orientation, prop.perimeter,
+                  prop.solidity])
+        if prop in trues:
+            print "+1"
+            y.append(1)
+        else:
+            y.append(0)
+
+    X_scaled = scale(X)
+    # Train classifier
+    clf = SVC(kernel='linear', class_weight={1: 10})
+    clf.fit(X_scaled, y)
+
+
+    # classifier = PulseClassifier(SVC, kernel='linear', class_weight={1: 10})
+    # classifier.train(frame, t0, amp, width, dm, 99.85, d_t=0.005, d_dm=200.)
+
+    # Create some data
+    print "Creating testing data"
+    frame = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
+    frame.add_pulse(230., 2.1, 0.005, dm=450.)
+    frame.add_pulse(130., 2.5, 0.002, dm=650.)
+    frame.add_pulse(530., 2.4, 0.003, dm=350.)
+    result = clf.predict(X_scaled)
