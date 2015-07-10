@@ -1,7 +1,9 @@
 import numpy as np
-from scipy.ndimage.measurements import (maximum_position, label, find_objects,
-    mean, minimum, sum, variance)
 from scipy.ndimage.morphology import generate_binary_structure
+from scipy.ndimage.measurements import maximum_position, label
+from skimage.measure import regionprops
+from sklearn.svm import SVC
+from sklearn.preprocessing import scale
 
 
 class BasicImageObjects(object):
@@ -25,39 +27,48 @@ class BasicImageObjects(object):
         arguments.
 
     """
-    def __init__(self, image, perc):
+    def _width(self, obj, image):
+        """
+        Returns widths of image object in both direction.
+        :param obj:
+        :param image:
+        :return:
+            dx, dy
+        """
+        return (obj.bbox[2] - obj.bbox[0], obj.bbox[3] - obj.bbox[1],)
+
+    def __init__(self, image, perc, clf=None):
+        self.image = image
+        self._clf = clf
+        self.perc = perc
         threshold = np.percentile(image.ravel(), perc)
         a = image.copy()
         # Keep only tail of image values distribution with signal
         a[a < threshold] = 0
         s = generate_binary_structure(2, 2)
-        # Label image
-        labeled_array, num_features = label(a, structure=s)
-        # Find objects
-        objects = find_objects(labeled_array)
-        # Container of object's properties
-        _objects = np.empty(num_features, dtype=[('label', 'int'),
-                                                 ('dx', '<f8'),
-                                                 ('dy', '<f8'),
-                                                 ('max_pos', 'int',
-                                                  (2,))])
+        label_image, num_features = label(a, structure=s)
+        self.label_image = label_image
+        self.objects = regionprops(label_image, intensity_image=image)
 
-        labels = np.arange(num_features) + 1
-        dx = [int(obj[1].stop - obj[1].start) for obj in objects]
-        dy = [int(obj[0].stop - obj[0].start) for obj in objects]
-
-        # Filling objects structured array
-        _objects['label'] = labels
-        _objects['dx'] = dx
-        _objects['dy'] = dy
-        self.objects = _objects
-        self._classify(image, labeled_array)
+        # Classify objects
+        self._classify(clf)
         # Fetch positions of only successfuly classified objects
-        self.max_pos = self._find_positions(image, labeled_array)
+        self.max_pos = self._find_positions()
         self._sort()
 
-    def _find_positions(self, image, labeled_array):
-        return maximum_position(image, labels=labeled_array, index=self.label)
+    def _find_positions(self, objects=None):
+        """
+        Find position of maximum for given image objects.
+        :param objects:
+        :param image:
+        :param label_image:
+        :return:
+        """
+        if objects is None:
+            objects = self.objects
+        labels = [obj.label for obj in objects]
+        return maximum_position(self.image, labels=self.label_image,
+                                index=labels)
 
     def _sort(self):
         """
@@ -65,12 +76,12 @@ class BasicImageObjects(object):
         """
         raise NotImplementedError
 
-    def _classify(self, *args, **kwargs):
+    def _classify(self, clf, *args, **kwargs):
         """
         Method that selects only image objects with desirable properties.
         You can use any features of ``objects`` attribute for classification.
         Or you can fetch any other features (like ``max`` or ``variance``)
-        using passed as arguments to method ``image`` and ``labeled_array``.
+        using passed as arguments to method ``image`` and ``label_image``.
         """
         raise NotImplementedError
 
@@ -91,6 +102,13 @@ class BasicImageObjects(object):
                 raise AttributeError(a)
         values = np.vstack([self.__getattribute__(a) for a in features]).T
         np.savetxt(fname, values)
+
+    @property
+    def widths(self):
+        """
+        Shortcut for widths of objects in both direction in pixels.
+        """
+        return [self._width(obj, image) for obj in self.objects]
 
     @property
     def dx(self):
@@ -317,3 +335,5 @@ if __name__ == '__main__':
     frame.add_pulse(70., 0.125, 0.003, dm=400.)
     frame.add_pulse(80., 0.125, 0.003, dm=300.)
     dm_grid, frames_t_dedm = frame.grid_dedisperse(0, 1000., threads=4)
+    btdmio = BatchedTDMIO(frames_t_dedm, frame.t, dm_grid, 99.95)
+    xy = btdmio.run(batch_size=100000)

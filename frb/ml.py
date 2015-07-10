@@ -11,11 +11,17 @@ from sklearn.preprocessing import scale
 class PulseClassifier(object):
 
     @staticmethod
-    def max_pos(prop, image):
-        subimage = image[prop.bbox[0]: prop.bbox[2],
-                   prop.bbox[1]: prop.bbox[3]]
+    def max_pos(object, image):
+        """
+        Returns maximum position and widths in both direction.
+        :param object:
+        :param image:
+        :return:
+        """
+        subimage = image[object.bbox[0]: object.bbox[2],
+                   object.bbox[1]: object.bbox[3]]
         indx = np.unravel_index(subimage.argmax(), subimage.shape)
-        return (prop.bbox[0] + indx[0], prop.bbox[1] + indx[1]), prop.bbox[2] - prop.bbox[0], prop.bbox[3] - prop.bbox[1]
+        return (object.bbox[0] + indx[0], object.bbox[1] + indx[1]), object.bbox[2] - object.bbox[0], object.bbox[3] - object.bbox[1]
 
     def __init__(self, clf=SVC, *args, **kwargs):
         self._clf = clf(args, kwargs)
@@ -67,6 +73,8 @@ class PulseClassifier(object):
                     print "index in props ", props.index(prop)
                     true_.append(prop)
             # Keep only object with highest area if more then one
+            if not true_:
+                print "Haven't found injected pulse ", t0_, dm_
             trues.append(sorted(true_, key=lambda x: x.area, reverse=True)[0])
 
         # Create arrays with features
@@ -131,7 +139,7 @@ if __name__ == '__main__':
     fname = '/home/ilya/code/frb/data/630_sec_wb_raes08a_128ch.npy'
     frame = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
     t0 = range(10, 600, 25)
-    amp = np.random.uniform(2., 3., size=len(t0))
+    amp = np.random.uniform(3., 4., size=len(t0))
     width = np.random.uniform(0.0001, 0.01, size=len(t0))
     dm = np.random.uniform(200., 900., size=len(t0))
 
@@ -180,6 +188,8 @@ if __name__ == '__main__':
                 true_.append(prop)
         # Keep only object with highest area if more then one
         print true_
+        if not true_:
+            print "Haven't found injected pulse ", t0_, dm_
         trues.append(sorted(true_, key=lambda x: x.area, reverse=True)[0])
 
     # Create arrays with features
