@@ -134,6 +134,27 @@ class PulseClassifier(object):
         return result
 
 
+def timing(frame, dm_delta=None, dm_max=1000.):
+    import time
+    if dm_delta:
+        dm_grid = frame.create_dm_grid(0., dm_max, dm_delta)
+        t0 = time.time()
+        tdm_image = frame.grid_dedisperse(dm_grid, threads=4)
+        t1 = time.time()
+        print t1 - t0
+        return tdm_image
+    else:
+        from FDMT import FDMT
+        n = int(dm_max / 35.)
+        t0 = time.time()
+        dmt = FDMT(frame.values[:, :524288], 1668.125, 1684., n,
+                   frame.values.dtype)
+        t1 = time.time()
+        print t1 - t0
+        return dmt
+
+
+
 if __name__ == '__main__':
     from frames import DataFrame
     fname = '/home/ilya/code/frb/data/630_sec_wb_raes08a_128ch.npy'

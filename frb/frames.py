@@ -123,7 +123,11 @@ class Frame(object):
         values = np.zeros(self.n_t)
         # Roll each axis (freq. channel) to each own number of time steps.
         for i in range(self.n_nu):
-            values += np.roll(self.values[i], -nt_all[i])
+            n = nt_all[i]
+            if n == 0:
+                values += self.values[i]
+            else:
+                values[:-nt_all[i]] += self.values[i, nt_all[i]:]
 
         return values / self.n_nu
 
@@ -352,9 +356,9 @@ class DataFrame(Frame):
         assert not int(n_nu_discard) % 2
 
         try:
-            values = np.load(fname).T
+            values = np.load(fname)
         except IOError:
-            values = np.loadtxt(fname, unpack=True)
+            values = np.loadtxt(fname)
         n_nu, n_t = np.shape(values)
         super(DataFrame, self).__init__(n_nu - n_nu_discard, n_t,
                                         nu_0 - n_nu_discard * dnu / 2., t_0,

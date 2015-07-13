@@ -108,7 +108,7 @@ class BasicImageObjects(object):
         """
         Shortcut for widths of objects in both direction in pixels.
         """
-        return [self._width(obj, image) for obj in self.objects]
+        return [self._width(obj, self.image) for obj in self.objects]
 
     @property
     def dx(self):
