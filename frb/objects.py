@@ -35,7 +35,7 @@ class BasicImageObjects(object):
         :return:
             dx, dy
         """
-        return (obj.bbox[2] - obj.bbox[0], obj.bbox[3] - obj.bbox[1],)
+        return obj.bbox[2] - obj.bbox[0], obj.bbox[3] - obj.bbox[1]
 
     def __init__(self, image, perc, clf=None):
         self.image = image
@@ -302,7 +302,7 @@ class BatchedTDMIO(object):
     def run(self, batch_size=500000):
         """
 
-        :param bathsize: (optional)
+        :param batch_size: (optional)
             Size of image in x-direction, that will be searched for objects in
             batches. If ``None`` then don't use batches and search the whole
             image at once. (default: ``None``)
@@ -324,16 +324,17 @@ class BatchedTDMIO(object):
 
 if __name__ == '__main__':
     from frames import DataFrame
-    fname = '/home/ilya/code/frb/data/90_sec_wb_raes08a_128ch'
+    fname = '/home/ilya/code/frb/data/630_sec_wb_raes08a_128ch.npy'
     frame = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
-    frame.add_pulse(10., 0.125, 0.003, dm=1000.)
-    frame.add_pulse(20., 0.125, 0.003, dm=900.)
-    frame.add_pulse(30., 0.125, 0.003, dm=800.)
-    frame.add_pulse(40., 0.125, 0.003, dm=700.)
-    frame.add_pulse(50., 0.125, 0.003, dm=600.)
-    frame.add_pulse(60., 0.125, 0.003, dm=500.)
-    frame.add_pulse(70., 0.125, 0.003, dm=400.)
-    frame.add_pulse(80., 0.125, 0.003, dm=300.)
-    dm_grid, frames_t_dedm = frame.grid_dedisperse(0, 1000., threads=4)
-    btdmio = BatchedTDMIO(frames_t_dedm, frame.t, dm_grid, 99.95)
-    xy = btdmio.run(batch_size=100000)
+    frame.add_pulse(100., 2.5, 0.003, dm=1000.)
+    frame.add_pulse(200., 2.5, 0.003, dm=900.)
+    frame.add_pulse(300., 2.5, 0.003, dm=800.)
+    frame.add_pulse(400., 2.5, 0.003, dm=700.)
+    frame.add_pulse(500., 2.5, 0.003, dm=600.)
+    frame.add_pulse(600., 2.5, 0.003, dm=500.)
+    frame.add_pulse(700., 2.5, 0.003, dm=400.)
+    frame.add_pulse(800., 2.5, 0.003, dm=300.)
+    dm_grid = frame.create_dm_grid(0., 1000., 35.)
+    frames_t_dedm = frame.grid_dedisperse(dm_grid, threads=4)
+    # btdmio = BatchedTDMIO(frames_t_dedm, frame.t, dm_grid, 99.95)
+    # xy = btdmio.run(batch_size=100000)
