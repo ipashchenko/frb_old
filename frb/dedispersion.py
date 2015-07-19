@@ -23,6 +23,7 @@ def de_disperse(image, nu_0, d_nu, d_t, dm_values):
         2D numpy array (#DM, #t)
 
     """
+    dm_values = np.array(dm_values)
     n_nu, n_t = image.shape
     nu = np.arange(n_nu, dtype=float)
     nu = (nu_0 - nu * d_nu)[::-1]
@@ -39,11 +40,11 @@ def de_disperse(image, nu_0, d_nu, d_t, dm_values):
     nt_all = vint(vround(dt_all / d_t))[:, ::-1]
 
     # Create array for TDM
-    n_dm = len(dm_values)
-    values = np.zeros((n_dm, n_t), dtype=float)
+    values = np.zeros((len(dm_values), n_t), dtype=float)
+    # Fill DM=0 row
     values[0] = cumsums[-1]
 
-    # Cycle over DM values and fill TDM array
+    # Cycle over DM values and fill TDM array for others DM values
     for i, nt in enumerate(nt_all[1:]):
         # Find at wich frequency channels time shifts have occurred
         indx = np.where(nt[1:] - nt[:-1] == 1)[0]
@@ -60,19 +61,31 @@ def de_disperse(image, nu_0, d_nu, d_t, dm_values):
 if __name__ == '__main__':
     import time
     from frames import DataFrame
-    from objects import BatchedTDMIO
+    # from objects import BatchedTDMIO
     # fname = '/home/ilya/code/frb/data/630_sec_wb_raes08a_128ch.npy'
     fname = '/home/ilya/code/frb/data/out_crab_full_64x1.npy'
     frame = DataFrame(fname, 1684., 0., 16. / 64., 0.001)
+    # frame = DataFrame(fname, 1684., 0., 16. / 128., 0.001)
+    # frame.add_pulse(100., 0.7, 0.003, 300.)
+    # frame.add_pulse(200., 0.7, 0.001, 400.)
+    # frame.add_pulse(300., 0.7, 0.006, 200.)
+    # frame.add_pulse(400., 0.7, 0.002, 500.)
+    # frame.add_pulse(500., 0.7, 0.003, 600.)
+    # frame.add_pulse(600., 0.7, 0.004, 300.)
     # frame.add_pulse(300., 1.0, 0.003, dm=500.)
-    dm_values = frame.create_dm_grid(0., 1000., 35.)
+    dm_values = frame.create_dm_grid(0., 1000., 30.)
     t0 = time.time()
     result = de_disperse(frame.values, 1684, 16./64, 0.001, dm_values)
+    # result = de_disperse(frame.values, 1684, 16./128, 0.001, dm_values)
     t1 = time.time()
     print t1 - t0
-    btdmi = BatchedTDMIO(result, frame.t, dm_values, 99.9, d_dm=300, dt=0.004)
-    t0 = time.time()
-    xy = btdmi.run(batch_size=100000)
-    t1 = time.time()
-    print xy
-    print t1 - t0
+    # t0 = time.time()
+    # result = frame.grid_dedisperse(dm_values, threads=4)
+    # t1 = time.time()
+    # print t1 - t0
+    # btdmi = BatchedTDMIO(result, frame.t, dm_values, 99.85, d_dm=350, dt=0.003)
+    # t0 = time.time()
+    # xy = btdmi.run(batch_size=100000)
+    # t1 = time.time()
+    # print xy
+    # print t1 - t0
