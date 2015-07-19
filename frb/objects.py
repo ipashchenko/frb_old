@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.ndimage.measurements import maximum_position, label, find_objects
 from scipy.ndimage.morphology import generate_binary_structure
+from scipy.ndimage.filters import gaussian_filter
 
 
 class BasicImageObjects(object):
@@ -255,8 +256,11 @@ class BatchedTDMIO(object):
         [s]. (default: ``0.003``)
 
     """
-    def __init__(self, image, x_grid, y_grid, perc, d_dm=100., dt=0.003):
+    def __init__(self, image, x_grid, y_grid, perc, d_dm=100., dt=0.003,
+                 std=None):
         self.image = np.asarray(image)
+        if std is not None:
+            self.image = gaussian_filter(self.image, std)
         self.x_grid = np.array(x_grid)
         self.y_grid = np.array(y_grid)
         self.perc = perc
