@@ -363,3 +363,31 @@ class DataFrame(Frame):
             self.values += values[n_nu_discard / 2 : -n_nu_discard / 2, :]
         else:
             self.values += values
+
+
+if __name__ == '__main__':
+    import time
+    print "Creating frame"
+    frame = Frame(512, 600000, 1684., 0., 16./512, 1./1000)
+    print "Adding pulse"
+    frame.add_pulse(100., 0.09, 0.003, 100.)
+    frame.add_pulse(200., 0.09, 0.003, 200.)
+    frame.add_pulse(300., 0.09, 0.003, 300.)
+    frame.add_pulse(400., 0.09, 0.003, 500.)
+    frame.add_pulse(500., 0.09, 0.003, 700.)
+    print "Adding noise"
+    frame.add_noise(0.5)
+    dm_values = frame.create_dm_grid(0., 1000., 50)
+    from dedispersion import de_disperse
+    t0 = time.time()
+    result = de_disperse(frame.values, 1684., 16./512, 1./1000, dm_values)
+    t1 = time.time()
+    print "Dedispersion took", t1 - t0
+    a = frame.values
+    from objects import BatchedTDMIO
+    btdmi = BatchedTDMIO(result, frame.t, dm_values, 99.85, d_dm=350, dt=0.003)
+    t0 = time.time()
+    xy = btdmi.run(batch_size=100000)
+    t1 = time.time()
+    print xy
+    print "Search of pulses took", t1 - t0
