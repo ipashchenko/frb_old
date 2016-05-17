@@ -1,9 +1,11 @@
 FRB
 =====
 
-## Searching FRB in auto-spectral data
+## Searching FRB in auto-spectral data [OUTDATED]
 
 frb - tool used to search Fast Radio Bursts in auto-spectral data
+
+Up-to-date version will be released soon
 
 ## Requirements:
 
